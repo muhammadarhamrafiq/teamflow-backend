@@ -1,0 +1,30 @@
+name: Deploy Teamflow Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Build Docker image
+        run: |
+          docker build -t teamflow-backend .
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: tf-backend
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+          package: .
