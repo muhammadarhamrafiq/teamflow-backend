@@ -21,5 +21,5 @@ jobs:
 
       - name: Build and Push Image
         run: |
-          docker build -t ${{ ACR_LOGIN_SERVER }}/nestjs-app:latest .
-          docker push ${{ ACR_LOGIN_SERVER }}/nestjs-app:latest
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/nestjs-app:latest .
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/nestjs-app:latest
