@@ -1,16 +1,25 @@
-name: Build and Push Docker Image
+name: Build, Push, Deploy to Web App (Container)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      id-token: write 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Login to ACR
         uses: azure/docker-login@v1
@@ -19,7 +28,23 @@ jobs:
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Build and Push Image
+      - name: Build and Push
         run: |
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/nestjs-app:latest .
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/nestjs-app:latest
+          IMAGE="${{ secrets.ACR_LOGIN_SERVER }}/nestjs-app:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Point Web App to the new image
+        run: |
+          az webapp config container set \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ secrets.AZURE_WEBAPP_NAME }}" \
+            --docker-custom-image-name "$IMAGE" \
+            --docker-registry-server-url "https://${{ secrets.ACR_LOGIN_SERVER }}"
+
+      - name: Restart Web App (forces pull/run new image)
+        run: |
+          az webapp restart \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ secrets.AZURE_WEBAPP_NAME }}"
