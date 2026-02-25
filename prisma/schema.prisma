@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -18,7 +19,7 @@ enum ProjectStatus {
   ACTIVE
   ON_HOLD
   COMPLETED
-  ARCHIEVED
+  ARCHIVED
 }
 
 enum TaskStatus {
@@ -34,7 +35,7 @@ enum TaskStatus {
 model User {
   id             String @id @default(uuid())
   name           String
-  email          String @unique
+  email          String
   password       String
   role           Role   @default(MEMBER)
   organizationId String
@@ -46,14 +47,16 @@ model User {
   OwnerOf      Organization? @relation("organization_owner_relation")
   tasks        Task[]
   comments     Comment[]
+
+  @@unique([email, organizationId])
 }
 
 model Organization {
-  id      String @id @default(uuid())
+  id      String  @id @default(uuid())
   name    String
-  slug    String
-  logoUrl String
-  ownerId String @unique
+  slug    String  @unique
+  logoUrl String?
+  ownerId String  @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -67,13 +70,13 @@ model Project {
   id             String        @id @default(uuid())
   name           String
   slug           String
-  description    String
+  description    String?
   projectStatus  ProjectStatus @default(PLANNING)
-  dueDate        DateTime
+  dueDate        DateTime?
   organizationId String
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
   tasks        Task[]
@@ -84,10 +87,10 @@ model Project {
 model Task {
   id          String     @id @default(uuid())
   name        String
-  description String
-  startDate   DateTime
-  dueDate     DateTime
-  tastStatus  TaskStatus
+  description String?
+  startDate   DateTime?
+  dueDate     DateTime?
+  taskStatus  TaskStatus @default(BACKLOG)
   assigneeId  String
   projectId   String
 
