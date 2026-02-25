@@ -27,6 +27,11 @@ class EnvironmentVariables {
     message: 'DATABASE_URL is required and cannot be empty.',
   })
   DATABASE_URL: string;
+
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  BCRYPT_SALT_ROUNDS: number;
 }
 
 export function validate(config: Record<string, unknown>) {
