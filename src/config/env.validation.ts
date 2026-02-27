@@ -32,6 +32,15 @@ class EnvironmentVariables {
   @Min(1)
   @Max(20)
   BCRYPT_SALT_ROUNDS: number;
+
+  @IsNotEmpty({ message: 'JWT_ACCESS_SECRET is required' })
+  JWT_ACCESS_SECRET: string;
+
+  @IsNotEmpty({ message: 'JWT_REFRESH_SECRET is required' })
+  JWT_REFRESH_SECRET: string;
+
+  JWT_ACCESS_EXPIRES_IN: string;
+  JWT_REFRESH_EXPIRES_IN: string;
 }
 
 export function validate(config: Record<string, unknown>) {

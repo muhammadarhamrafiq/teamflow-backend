@@ -33,37 +33,43 @@ enum TaskStatus {
 }
 
 model User {
-  id             String @id @default(uuid())
-  name           String
-  email          String
-  password       String
-  role           Role   @default(MEMBER)
-  organizationId String
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Organization  @relation("org_members", fields: [organizationId], references: [id])
-  OwnerOf      Organization? @relation("organization_owner_relation")
-  tasks        Task[]
-  comments     Comment[]
+  tasks             Task[]
+  comments          Comment[]
+  userOrganizations UserOrganization[]
+  refreshToken      RefreshToken[]
+}
 
-  @@unique([email, organizationId])
+model UserOrganization {
+  userId         String
+  organizationId String
+  role           Role
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@id([userId, organizationId])
 }
 
 model Organization {
-  id      String  @id @default(uuid())
-  name    String
-  slug    String  @unique
-  logoUrl String?
-  ownerId String  @unique
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  slug        String  @unique
+  logoUrl     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users    User[]    @relation("org_members")
-  owner    User      @relation("organization_owner_relation", fields: [ownerId], references: [id])
-  projects Project[]
+  projects          Project[]
+  userOrganizations UserOrganization[]
 }
 
 model Project {
@@ -113,4 +119,17 @@ model Comment {
 
   task   Task @relation(fields: [taskId], references: [id])
   author User @relation(fields: [authorId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  deviceId  String?
+  userAgent String?
+  ipAddress String?
+  token     String
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
