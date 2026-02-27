@@ -12,11 +12,11 @@ import { AuthService } from './auth.service';
 import { RegisterAuthDto } from './dto/register-auth-dto';
 import { ApiBearerAuth, ApiCookieAuth } from '@nestjs/swagger';
 import { SignInDto } from './dto/sign-in-dto';
-import { AuthGuard } from './guards/auth.guard';
 
 import type { Request, Response } from 'express';
 import { RefreshGuard } from './guards/refresh.guard';
 import { JwtPayload } from './interfaces/jwt-payload';
+import { Public } from 'src/commons/helpers/public.decorator';
 
 @Controller({
   path: 'auth',
@@ -25,6 +25,7 @@ import { JwtPayload } from './interfaces/jwt-payload';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
   @Post('register')
+  @Public()
   async register(@Body() registerDto: RegisterAuthDto) {
     const user = await this.authService.register(registerDto);
     return {
@@ -34,6 +35,7 @@ export class AuthController {
   }
 
   @Post('sign-in')
+  @Public()
   @HttpCode(200)
   async signIn(
     @Body() signInDto: SignInDto,
@@ -79,6 +81,7 @@ export class AuthController {
 
   @ApiCookieAuth('Refresh token')
   @Post('refresh')
+  @Public()
   @UseGuards(RefreshGuard)
   @HttpCode(200)
   async refershToken(
@@ -111,9 +114,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiCookieAuth()
   @Post('logout')
-  @UseGuards(AuthGuard)
   @HttpCode(204)
-  async logout(@Req() req: Request, @Res() res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { sessionId } = req.user!;
     res.clearCookie('access_token', { httpOnly: true, secure: true });
     res.clearCookie('refresh_token', { httpOnly: true, secure: true });
@@ -125,7 +127,6 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiCookieAuth()
   @Post('logout/all')
-  @UseGuards(AuthGuard)
   @HttpCode(204)
   async logoutAll(@Req() req: Request) {
     const { id } = req.user!;
@@ -136,7 +137,6 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiCookieAuth()
   @Get('sessions')
-  @UseGuards(AuthGuard)
   async getSessions(@Req() req: Request) {
     const { id } = req.user!;
     const sessions = await this.authService.getSessions(id);
@@ -148,7 +148,6 @@ export class AuthController {
 
   @ApiBearerAuth()
   @ApiCookieAuth()
-  @UseGuards(AuthGuard)
   @Get('me')
   async getMe(@Req() req: Request) {
     const { id } = req.user!;

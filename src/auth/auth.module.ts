@@ -5,10 +5,17 @@ import { SecurityModule } from '../commons/security/security.module';
 import { JwtModule } from '@nestjs/jwt';
 import { TokenService } from './services/token.service';
 import { SessionService } from './services/sessions.service';
+import { APP_GUARD } from '@nestjs/core';
+import { AuthGuard } from './guards/auth.guard';
 
 @Module({
   imports: [SecurityModule, JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, SessionService],
+  providers: [
+    AuthService,
+    TokenService,
+    SessionService,
+    { provide: APP_GUARD, useClass: AuthGuard },
+  ],
 })
 export class AuthModule {}
