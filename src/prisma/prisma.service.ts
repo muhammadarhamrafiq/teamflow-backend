@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
   OnModuleDestroy,
 } from '@nestjs/common';
 import { PrismaClient } from '../generated/prisma/client';
@@ -46,8 +47,10 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
     switch (code) {
       case 'P2002':
         throw new ConflictException(message);
+      case 'P2025':
+        throw new NotFoundException(message);
       default:
-        throw new InternalServerErrorException();
+        throw new InternalServerErrorException('Database Error');
     }
   }
 }

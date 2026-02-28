@@ -8,15 +8,15 @@ import {
   Res,
   HttpCode,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { RegisterAuthDto } from './dto/register-auth-dto';
+import { Public } from 'src/commons/helpers/public.decorator';
 import { ApiBearerAuth, ApiCookieAuth } from '@nestjs/swagger';
-import { SignInDto } from './dto/sign-in-dto';
+import { RefreshGuard } from './guards/refresh.guard';
+import { AuthService } from './auth.service';
 
 import type { Request, Response } from 'express';
-import { RefreshGuard } from './guards/refresh.guard';
-import { JwtPayload } from './interfaces/jwt-payload';
-import { Public } from 'src/commons/helpers/public.decorator';
+import type { SignInDto } from './dto/sign-in-dto';
+import type { JwtPayload } from './interfaces/jwt-payload';
+import type { RegisterAuthDto } from './dto/register-auth-dto';
 
 @Controller({
   path: 'auth',
