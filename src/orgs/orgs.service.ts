@@ -13,10 +13,14 @@ import type {
   OrganizationUpdateInput,
   ProjectWhereInput,
 } from 'src/generated/prisma/models';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class OrgsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly userService: UsersService,
+  ) {}
 
   private async generateSlug(name: string) {
     const baseSlug = slugify(name, {
@@ -44,9 +48,7 @@ export class OrgsService {
      * Generate the slug
      * Create the organization
      */
-    const user = await this.prismaService.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.userService.findUserById(userId);
     if (!user) throw new UnauthorizedException('User not found');
 
     const slug = await this.generateSlug(organization.name);

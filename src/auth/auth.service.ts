@@ -1,11 +1,16 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PasswordService } from 'src/commons/security/password.service';
-import { TokenService } from './services/token.service';
+import { TokenService } from '../commons/jwt/token.service';
 import { SessionService } from './services/sessions.service';
+import { UsersService } from 'src/users/users.service';
 
-import type { RegisterAuthDto } from './dto/register-auth-dto';
+import type { EmailDto } from './dto/email-dto';
 import type { SignInDto } from './dto/sign-in-dto';
 import type { JwtPayload } from './interfaces/jwt-payload';
 
@@ -13,44 +18,18 @@ import type { JwtPayload } from './interfaces/jwt-payload';
 export class AuthService {
   constructor(
     private readonly prismaService: PrismaService,
+    private readonly userService: UsersService,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
   ) {}
 
-  async register(registerDto: RegisterAuthDto) {
-    /**
-     * Get Payload
-     * Hash Password
-     * Return created user
-     */
-    const { name, email, password } = registerDto;
-    const hashedPassword = await this.passwordService.hash(password);
-
-    return await this.prismaService.user
-      .create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-        },
-        omit: {
-          // password: true,
-        },
-      })
-      .catch((err) => {
-        this.prismaService.errorHandler(err as Error, {
-          P2002: 'Email Already Exits',
-          default: 'Something Went wrong while creating user',
-        });
-      });
-  }
-
   private async validateUser(email: string, password: string) {
-    const user = await this.prismaService.user.findUnique({ where: { email } });
+    const user = await this.userService.findUserByEmail(email);
     const hashToCompare = user
       ? user.password
       : '$2b$10$2RDz1RwUYAwVQEnmh3Iipeq5TrvMFH4JV0dQv9rpz.oBDANYWVe4C';
+
     const validPassword = await this.passwordService.compare(
       password,
       hashToCompare,
@@ -60,6 +39,25 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Credentials');
 
     return { id: user.id, email: user.email };
+  }
+
+  async register(registerDto: EmailDto) {
+    /**
+     * Get the email
+     * Verify its uniqueness
+     * Create token and send the email
+     */
+    const user = await this.userService.findUserByEmail(registerDto.email);
+    if (user) throw new ConflictException('User with this email already exits');
+    const token = this.tokenService.generateActionToken(
+      {
+        email: registerDto.email,
+        purpose: 'verify_email',
+      },
+      '30m',
+    );
+    // TODO: Remove this return after the emailing is setuped
+    return token;
   }
 
   async signIn(
@@ -141,13 +139,38 @@ export class AuthService {
   }
 
   async getMe(id: string) {
-    await this.prismaService.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
+    await this.userService.findUserById(id);
+  }
+
+  async updateEmail(id: string, newEmail: string) {
+    // TODO: Later send email to new Email instead of sending the token as response
+    const token = await this.tokenService.generateActionToken(
+      {
+        purpose: 'update_email',
+        email: newEmail,
+        userId: id,
       },
-    });
+      '30m',
+    );
+
+    return token;
+  }
+
+  async resetPassword(email: string) {
+    const user = await this.userService.findUserByEmail(email);
+
+    // TODO: Later send the email instead to send token as response
+    if (user) {
+      const token = await this.tokenService.generateActionToken(
+        {
+          purpose: 'reset_password',
+          userId: user.id,
+        },
+        '15m',
+      );
+      return token;
+    }
+
+    return null;
   }
 }

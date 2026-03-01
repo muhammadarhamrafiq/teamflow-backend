@@ -39,6 +39,9 @@ class EnvironmentVariables {
   @IsNotEmpty({ message: 'JWT_REFRESH_SECRET is required' })
   JWT_REFRESH_SECRET: string;
 
+  @IsNotEmpty({ message: 'JWT_ACTION_SECRET is required' })
+  JWT_ACTION_SECRET: string;
+
   JWT_ACCESS_EXPIRES_IN: string;
   JWT_REFRESH_EXPIRES_IN: string;
 }

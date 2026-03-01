@@ -9,14 +9,15 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { Public } from 'src/commons/helpers/public.decorator';
-import { ApiBearerAuth, ApiCookieAuth } from '@nestjs/swagger';
+import { ApiCookieAuth } from '@nestjs/swagger';
 import { RefreshGuard } from './guards/refresh.guard';
 import { AuthService } from './auth.service';
+import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 
 import type { Request, Response } from 'express';
 import type { SignInDto } from './dto/sign-in-dto';
 import type { JwtPayload } from './interfaces/jwt-payload';
-import type { RegisterAuthDto } from './dto/register-auth-dto';
+import type { EmailDto } from './dto/email-dto';
 
 @Controller({
   path: 'auth',
@@ -24,13 +25,15 @@ import type { RegisterAuthDto } from './dto/register-auth-dto';
 })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
   @Post('register')
   @Public()
-  async register(@Body() registerDto: RegisterAuthDto) {
-    const user = await this.authService.register(registerDto);
+  async register(@Body() registerDto: EmailDto) {
+    // TODO: Donot send the tokens in response once email service is seted
+    const token = await this.authService.register(registerDto);
     return {
-      message: 'User created successfully',
-      user,
+      message: 'Check you email to confirm registeration',
+      token,
     };
   }
 
@@ -111,8 +114,7 @@ export class AuthController {
     };
   }
 
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @ApiAuth()
   @Post('logout')
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -124,8 +126,7 @@ export class AuthController {
     return;
   }
 
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @ApiAuth()
   @Post('logout/all')
   @HttpCode(204)
   async logoutAll(@Req() req: Request) {
@@ -134,8 +135,7 @@ export class AuthController {
     return;
   }
 
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @ApiAuth()
   @Get('sessions')
   async getSessions(@Req() req: Request) {
     const { id } = req.user!;
@@ -146,8 +146,7 @@ export class AuthController {
     };
   }
 
-  @ApiBearerAuth()
-  @ApiCookieAuth()
+  @ApiAuth()
   @Get('me')
   async getMe(@Req() req: Request) {
     const { id } = req.user!;
@@ -155,6 +154,29 @@ export class AuthController {
     return {
       message: 'Fetched Me',
       user,
+    };
+  }
+
+  @ApiAuth()
+  @Post('/update-email')
+  async updateEmail(@Req() req: Request, @Body() updateEmailDto: EmailDto) {
+    // TODO: Donot return the token after the emailing service is setuped
+    const { id } = req.user!;
+    const token = await this.authService.updateEmail(id, updateEmailDto.email);
+    return {
+      message: 'Check you inbox to verify email',
+      token,
+    };
+  }
+
+  @Public()
+  @Post('/reset-password')
+  async resetPassword(@Body() updatePasswordDto: EmailDto) {
+    // TODO: Donot return the token after emailing service is setuped
+    const token = await this.authService.resetPassword(updatePasswordDto.email);
+    return {
+      message: 'Check you inbox to reset the password',
+      token,
     };
   }
 }
