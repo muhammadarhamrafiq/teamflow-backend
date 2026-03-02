@@ -146,8 +146,14 @@ export class OrgsService {
     /**
      * if name is updated regenerate the slug
      */
+    const org = await this.prismaService.organization.findUnique({
+      where: { id },
+    });
+
+    if (!org) throw new NotFoundException('Organization not found');
+
     const data: OrganizationUpdateInput = updateDto;
-    if (updateDto.name) {
+    if (updateDto.name && org.name !== updateDto.name) {
       data.slug = await this.generateSlug(updateDto.name);
     }
     return this.prismaService.organization.update({

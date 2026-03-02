@@ -1,17 +1,25 @@
 import { Injectable } from '@nestjs/common';
+import { PasswordService } from 'src/commons/security/password.service';
 import { UserCreateInput, UserUpdateInput } from 'src/generated/prisma/models';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly passwordService: PasswordService,
+  ) {}
 
   async register(data: UserCreateInput) {
+    const hashedPassword = await this.passwordService.hash(data.password);
     return this.prismaService.user.create({
       data: {
         email: data.email,
-        password: data.password,
+        password: hashedPassword,
         name: data.name,
+      },
+      omit: {
+        password: true,
       },
     });
   }
@@ -44,9 +52,17 @@ export class UsersService {
   }
 
   async update(id: string, payload: UserUpdateInput) {
+    if (payload.password) {
+      payload.password = await this.passwordService.hash(
+        payload.password as string,
+      );
+    }
     const user = await this.prismaService.user.update({
       where: { id },
       data: payload,
+      omit: {
+        password: true,
+      },
     });
     return user;
   }

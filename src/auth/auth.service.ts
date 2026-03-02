@@ -131,7 +131,7 @@ export class AuthService {
   }
 
   async getSessions(id: string) {
-    await this.prismaService.refreshToken.findMany({
+    return this.prismaService.refreshToken.findMany({
       where: {
         userId: id,
       },
@@ -139,7 +139,7 @@ export class AuthService {
   }
 
   async getMe(id: string) {
-    await this.userService.findUserById(id);
+    return this.userService.findUserById(id);
   }
 
   async updateEmail(id: string, newEmail: string) {

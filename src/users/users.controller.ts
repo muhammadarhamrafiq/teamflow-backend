@@ -105,7 +105,11 @@ export class UsersController {
     const user = await this.usersService.findUserByEmail(email);
     return {
       messgae: user ? 'User fetched successfully' : 'User Not Found',
-      user,
+      user: {
+        id: user?.id,
+        name: user?.name,
+        email: user?.email,
+      },
     };
   }
 }
