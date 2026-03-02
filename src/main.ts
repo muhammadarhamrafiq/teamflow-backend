@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,6 +37,8 @@ async function bootstrap() {
 
   const documentation = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, documentation);
+
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port, '0.0.0.0');
