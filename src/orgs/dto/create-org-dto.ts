@@ -19,5 +19,5 @@ export class CreateOrgDto {
   @Length(10, 500, {
     message: 'Description must contain at least 10 to 500 characters',
   })
-  description: string = 'No description available for this orgination';
+  description?: string;
 }

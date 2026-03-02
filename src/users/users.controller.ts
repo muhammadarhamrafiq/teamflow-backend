@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -19,7 +20,11 @@ import { Public } from '../commons/helpers/public.decorator';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 
 import type { Request } from 'express';
-import { UpdateNameDto, UpdatePasswordDto } from './dto/update-dtos';
+import {
+  updateInviteStatusDto,
+  UpdateNameDto,
+  UpdatePasswordDto,
+} from './dto/update-dtos';
 import { RegisterUserDto } from './dto/register-dto';
 
 @Controller({
@@ -96,6 +101,33 @@ export class UsersController {
     return {
       message: 'Name updated succefully',
       user,
+    };
+  }
+
+  @ApiAuth()
+  @Get('invites')
+  async getInvites(@Req() req: Request) {
+    const userId = req.user!.id;
+    const invitations = await this.usersService.getInvites(userId);
+    return {
+      message: 'Invites fetched successfully',
+      invitations,
+    };
+  }
+
+  @ApiAuth()
+  @Patch('invites/:inviteId')
+  async updateInvite(
+    @Param('inviteId') inviteId: string,
+    @Query() updateInviteStatus: updateInviteStatusDto,
+  ) {
+    const response = await this.usersService.updateInvite(
+      inviteId,
+      updateInviteStatus.status,
+    );
+    return {
+      message: 'Status updated succesfully',
+      ...response,
     };
   }
 

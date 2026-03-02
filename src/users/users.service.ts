@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PasswordService } from 'src/commons/security/password.service';
-import { UserCreateInput, UserUpdateInput } from 'src/generated/prisma/models';
+import { MembershipService } from 'src/membership/membership.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+
+import { UserCreateInput, UserUpdateInput } from 'src/generated/prisma/models';
+import { FinalizeInvitationStatus } from './dto/update-dtos';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly passwordService: PasswordService,
+    private readonly membershipService: MembershipService,
   ) {}
 
   async register(data: UserCreateInput) {
@@ -74,5 +78,13 @@ export class UsersService {
         deletedAt: new Date(),
       },
     });
+  }
+
+  getInvites(id: string) {
+    return this.membershipService.getUserInvites(id);
+  }
+
+  async updateInvite(id: string, status: FinalizeInvitationStatus) {
+    return this.membershipService.updateInvite(id, status);
   }
 }

@@ -135,6 +135,14 @@ export class AuthService {
       where: {
         userId: id,
       },
+      select: {
+        id: true,
+        userId: true,
+        deviceId: true,
+        createdAt: true,
+        ipAddress: true,
+        userAgent: true,
+      },
     });
   }
 

@@ -77,7 +77,7 @@ model UserOrganization {
 model Organization {
   id          String  @id @default(uuid())
   name        String
-  description String?
+  description String? @default("No description available for this organization")
   slug        String  @unique
   logoUrl     String?
 
