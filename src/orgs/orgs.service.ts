@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 import slugify from 'slugify';
@@ -13,14 +9,10 @@ import type {
   OrganizationUpdateInput,
   ProjectWhereInput,
 } from 'src/generated/prisma/models';
-import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class OrgsService {
-  constructor(
-    private readonly prismaService: PrismaService,
-    private readonly userService: UsersService,
-  ) {}
+  constructor(private readonly prismaService: PrismaService) {}
 
   private async generateSlug(name: string) {
     const baseSlug = slugify(name, {
@@ -44,13 +36,9 @@ export class OrgsService {
 
   async create(organization: CreateOrgDto, userId: string) {
     /**
-     * validate the userId
      * Generate the slug
      * Create the organization
      */
-    const user = await this.userService.findUserById(userId);
-    if (!user) throw new UnauthorizedException('User not found');
-
     const slug = await this.generateSlug(organization.name);
 
     return await this.prismaService.organization.create({
@@ -169,15 +157,8 @@ export class OrgsService {
   }
 
   async deleteOrg(id: string) {
-    return this.prismaService.organization
-      .delete({
-        where: { id },
-      })
-      .catch((error: Error) => {
-        this.prismaService.errorHandler(error, {
-          P2025: 'Organization does not exits',
-          default: 'Something went wront while deleting organization',
-        });
-      });
+    return this.prismaService.organization.delete({
+      where: { id },
+    });
   }
 }

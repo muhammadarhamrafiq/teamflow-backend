@@ -19,8 +19,8 @@ import { Roles } from './decorators/roles.decorator';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 
 import type { Request } from 'express';
-import type { CreateOrgDto } from './dto/create-org-dto';
-import type { UpdateOrgDto } from './dto/update-org-dto';
+import { CreateOrgDto } from './dto/create-org-dto';
+import { UpdateOrgDto } from './dto/update-org-dto';
 
 @ApiTags('Organization')
 @Controller({

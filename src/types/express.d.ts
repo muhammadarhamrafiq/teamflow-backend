@@ -5,6 +5,7 @@ declare global {
     interface Request {
       user?: JwtPayload | (JwtPayload & { token: string });
       orgMembership?: { userId: string; role: string; organizationId: string };
+      action?: { userId?: string; purpose: string; email?: string };
     }
   }
 }

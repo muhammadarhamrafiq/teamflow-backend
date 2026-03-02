@@ -15,9 +15,9 @@ import { AuthService } from './auth.service';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 
 import type { Request, Response } from 'express';
-import type { SignInDto } from './dto/sign-in-dto';
 import type { JwtPayload } from './interfaces/jwt-payload';
-import type { EmailDto } from './dto/email-dto';
+import { SignInDto } from './dto/sign-in-dto';
+import { EmailDto } from './dto/email-dto';
 
 @Controller({
   path: 'auth',

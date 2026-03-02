@@ -1,15 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { UserUpdateInput } from 'src/generated/prisma/models';
+import { UserCreateInput, UserUpdateInput } from 'src/generated/prisma/models';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { RegisterUserDto } from './dto/register-dto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  // async register(token: string, data:RegisterUserDto){
-  //   const { email } =
-  // }
+  async register(data: UserCreateInput) {
+    return this.prismaService.user.create({
+      data: {
+        email: data.email,
+        password: data.password,
+        name: data.name,
+      },
+    });
+  }
 
   async findUserById(id: string) {
     const user = await this.prismaService.user.findUnique({
@@ -50,7 +55,7 @@ export class UsersService {
     await this.prismaService.user.update({
       where: { id },
       data: {
-        deletedAt: null,
+        deletedAt: new Date(),
       },
     });
   }
