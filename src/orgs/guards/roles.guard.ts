@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { Role } from 'src/generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -17,7 +18,7 @@ export class RolesGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext) {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>('roles', [
+    const requiredRoles = this.reflector.getAllAndOverride<Role[]>('roles', [
       context.getHandler(),
       context.getClass(),
     ]);
@@ -26,10 +27,10 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
     const userId = request.user?.id as string;
-    const orgSlug = request.params.slug as string;
+    const orgId = request.params.orgId as string;
 
     const membership =
-      request.orgMembership || (await this.getMemberShip(userId, orgSlug));
+      request.orgMembership || (await this.getMemberShip(userId, orgId));
 
     if (!membership) throw new UnauthorizedException();
     if (!requiredRoles.includes(membership.role))
@@ -40,11 +41,11 @@ export class RolesGuard implements CanActivate {
     return true;
   }
 
-  async getMemberShip(userId: string, slug: string) {
+  async getMemberShip(userId: string, orgId: string) {
     return await this.prismaService.userOrganization.findFirst({
       where: {
         userId,
-        organization: { slug },
+        organizationId: orgId,
       },
       select: {
         userId: true,

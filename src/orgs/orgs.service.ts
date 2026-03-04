@@ -9,6 +9,7 @@ import type {
   OrganizationUpdateInput,
   ProjectWhereInput,
 } from 'src/generated/prisma/models';
+import type { Role } from 'src/generated/prisma/enums';
 
 @Injectable()
 export class OrgsService {
@@ -79,9 +80,9 @@ export class OrgsService {
     }));
   }
 
-  async getOrg(id: string) {
+  async getOrg(slug: string) {
     const org = await this.prismaService.organization.findUnique({
-      where: { id },
+      where: { slug },
     });
     if (!org) throw new NotFoundException('Organization not found');
     return org;
@@ -112,7 +113,7 @@ export class OrgsService {
     }));
   }
 
-  async getProjects(organizationId: string, userId: string, role: string) {
+  async getProjects(organizationId: string, userId: string, role: Role) {
     /**
      * if the role is ADMIN or OWNER return all project
      * else return the project where the user has assigned task

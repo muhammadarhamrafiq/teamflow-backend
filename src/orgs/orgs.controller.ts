@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   NotImplementedException,
+  Param,
   Patch,
   Post,
   Req,
@@ -52,25 +53,22 @@ export class OrgsController {
     };
   }
 
-  @ApiParam({ name: 'slug' })
   @ApiAuth()
   @Get(':slug')
   @UseGuards(MemberShipGuard)
-  async getOrg(@Req() req: Request) {
-    const { organizationId, role } = req.orgMembership!;
-    const org = await this.orgsService.getOrg(organizationId);
+  async getOrg(@Req() req: Request, @Param('slug') slug: string) {
+    const { role } = req.orgMembership!;
+    const org = await this.orgsService.getOrg(slug);
     return {
       message: 'Organization fetched',
       org: { ...org, myRole: role },
     };
   }
 
-  @ApiParam({ name: 'slug' })
   @ApiAuth()
-  @Get(':slug/members')
+  @Get(':orgId/members')
   @UseGuards(MemberShipGuard)
-  async getMembers(@Req() req: Request) {
-    const { organizationId } = req.orgMembership!;
+  async getMembers(@Param('orgId') organizationId: string) {
     const members = await this.orgsService.getMembers(organizationId);
     return {
       message: 'Members Fetched Successfully',
@@ -78,9 +76,9 @@ export class OrgsController {
     };
   }
 
-  @ApiParam({ name: 'slug' })
+  @ApiParam({ name: 'orgId' })
   @ApiAuth()
-  @Get(':slug/projects')
+  @Get(':orgId/projects')
   @UseGuards(MemberShipGuard)
   async getProjects(@Req() req: Request) {
     const { organizationId, userId, role } = req.orgMembership!;
@@ -95,13 +93,14 @@ export class OrgsController {
     };
   }
 
-  @ApiParam({ name: 'slug' })
   @ApiAuth()
-  @Patch(':slug')
+  @Patch(':orgId')
   @Roles('OWNER')
   @UseGuards(RolesGuard)
-  async updateData(@Req() req: Request, @Body() updateOrgDto: UpdateOrgDto) {
-    const { organizationId } = req.orgMembership!;
+  async updateData(
+    @Param('orgId') organizationId: string,
+    @Body() updateOrgDto: UpdateOrgDto,
+  ) {
     const updatedOrg = await this.orgsService.updateData(
       organizationId,
       updateOrgDto,
@@ -112,9 +111,8 @@ export class OrgsController {
     };
   }
 
-  @ApiParam({ name: 'slug' })
   @ApiAuth()
-  @Patch(':slug/logo')
+  @Patch(':orgId/logo')
   @Roles('OWNER')
   @UseGuards(RolesGuard)
   updateLogo() {
@@ -122,13 +120,15 @@ export class OrgsController {
     throw new NotImplementedException();
   }
 
-  @ApiParam({ name: 'slug' })
   @ApiAuth()
   @UseGuards(RolesGuard)
-  @Delete(':slug')
+  @Delete(':orgId')
   @Roles('OWNER')
-  async deleteOrg(@Req() req: Request) {
-    const { organizationId } = req.orgMembership!;
-    await this.orgsService.deleteOrg(organizationId);
+  async deleteOrg(@Param('orgId') organizationId: string) {
+    const organization = await this.orgsService.deleteOrg(organizationId);
+    return {
+      message: 'Organization deleted',
+      organization,
+    };
   }
 }

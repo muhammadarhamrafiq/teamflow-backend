@@ -29,7 +29,7 @@ export class UsersService {
   }
 
   async findUserById(id: string) {
-    const user = await this.prismaService.user.findUnique({
+    const user = await this.prismaService.user.findFirst({
       where: {
         id,
         deletedAt: null,
@@ -45,7 +45,7 @@ export class UsersService {
   }
 
   async findUserByEmail(email: string) {
-    const user = await this.prismaService.user.findUnique({
+    const user = await this.prismaService.user.findFirst({
       where: {
         email,
         deletedAt: null,
@@ -62,7 +62,7 @@ export class UsersService {
       );
     }
     const user = await this.prismaService.user.update({
-      where: { id },
+      where: { id, deletedAt: null },
       data: payload,
       omit: {
         password: true,
@@ -73,7 +73,7 @@ export class UsersService {
 
   async deleteUser(id: string) {
     await this.prismaService.user.update({
-      where: { id },
+      where: { id, deletedAt: null },
       data: {
         deletedAt: new Date(),
       },

@@ -13,14 +13,14 @@ export class MemberShipGuard implements CanActivate {
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
     const user = request.user;
-    const slug = request.params.slug as string;
+    const orgId = request.params.orgId as string;
 
     if (!user) throw new UnauthorizedException();
 
     const membership = await this.prismaService.userOrganization.findFirst({
       where: {
         userId: user.id,
-        organization: { slug },
+        organizationId: orgId,
       },
       select: {
         userId: true,

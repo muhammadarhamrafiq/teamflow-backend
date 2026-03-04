@@ -23,10 +23,10 @@ import { UpdateRoleDto } from './dto/update-role-dto';
 
 @ApiAuth()
 @ApiTags('Membership')
-@ApiParam({ name: 'slug' })
+@ApiParam({ name: 'orgId' })
 @UseGuards(MemberShipGuard, RolesGuard)
 @Controller({
-  path: 'orgs/:slug',
+  path: 'orgs/:orgId',
 })
 export class MembershipController {
   constructor(private readonly membershipService: MembershipService) {}
@@ -110,7 +110,6 @@ export class MembershipController {
   }
 
   @Delete('mems/me')
-  @Roles()
   async leftOrg(@Req() req: Request) {
     const { organizationId, userId } = req.orgMembership!;
     const membership = await this.membershipService.removeMembership(
