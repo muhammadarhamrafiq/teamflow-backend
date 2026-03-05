@@ -8,10 +8,14 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 import type { InvitationStatus, Role } from 'src/generated/prisma/enums';
 import type { CreateInviteDto } from './dto/create-invited-dto';
+import { TasksService } from 'src/tasks/tasks.service';
 
 @Injectable()
 export class MembershipService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly taskService: TasksService,
+  ) {}
 
   async invite(organizationId: string, createInviteDto: CreateInviteDto) {
     /**
@@ -212,13 +216,19 @@ export class MembershipService {
         'Last owner cannot leave organization either tranfer ownership or delete organization',
       );
 
-    return this.prismaService.userOrganization.delete({
-      where: {
-        userId_organizationId: {
-          userId,
-          organizationId,
+    return this.prismaService.$transaction(async (tx) => {
+      const membership = await tx.userOrganization.delete({
+        where: {
+          userId_organizationId: {
+            userId,
+            organizationId,
+          },
         },
-      },
+      });
+
+      await this.taskService.userLeft(tx, userId, organizationId);
+
+      return membership;
     });
   }
 

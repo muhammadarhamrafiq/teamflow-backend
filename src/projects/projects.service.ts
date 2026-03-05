@@ -124,7 +124,7 @@ export class ProjectsService {
       pagination: {
         page,
         limit,
-        totalPages: projectsCount / limit,
+        totalPages: Math.ceil(projectsCount / limit),
       },
     };
   }
@@ -174,13 +174,9 @@ export class ProjectsService {
     };
   }
 
-  async updateProject(
-    id: string,
-    updateProjectDto: UpdateProjectDto,
-    organizationId: string,
-  ) {
+  async updateProject(id: string, updateProjectDto: UpdateProjectDto) {
     const proj = await this.prismaService.project.findFirst({
-      where: { id, organizationId },
+      where: { id, NOT: { projectStatus: 'ARCHIVED' } },
     });
 
     if (!proj) throw new NotFoundException('Project not found');
@@ -197,29 +193,25 @@ export class ProjectsService {
     });
   }
 
-  async updateProjectStatus(
-    id: string,
-    organizationId: string,
-    status: ProjectStatus,
-  ) {
+  async updateProjectStatus(id: string, status: ProjectStatus) {
     const proj = await this.prismaService.project.findFirst({
-      where: { id, organizationId },
+      where: { id },
     });
 
     if (!proj) throw new NotFoundException('Project not found');
     return await this.updateProjectStatusInternal(
       id,
-      status,
       this.prismaService,
       true,
+      status,
     );
   }
 
   async updateProjectStatusInternal(
     id: string,
+    tx: TransactionClient,
+    manual = false,
     status?: ProjectStatus,
-    tx?: TransactionClient,
-    manual = false, // true when called from API
   ) {
     const proj = await this.prismaService.project.findUnique({
       where: { id },
@@ -260,9 +252,7 @@ export class ProjectsService {
     }
     if (newStatus === proj.projectStatus) return proj;
 
-    const db = tx ?? this.prismaService;
-
-    return db.project.update({
+    return tx.project.update({
       where: { id },
       data: {
         projectStatus: newStatus,
@@ -270,11 +260,10 @@ export class ProjectsService {
     });
   }
 
-  async deleteProject(id: string, organizationId: string) {
+  async deleteProject(id: string) {
     return this.prismaService.project.delete({
       where: {
         id,
-        organizationId,
       },
     });
   }

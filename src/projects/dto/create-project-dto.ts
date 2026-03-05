@@ -18,9 +18,10 @@ export class CreateProjectDto {
   })
   description?: string;
 
+  @ApiProperty({ example: '2026-12-31T00:00:00.000Z' })
   @IsOptional()
   @Type(() => Date)
-  @IsDate({ message: 'due date must be a valid date' })
-  @IsFutureDate({ message: 'due date must be a valid future date' })
+  @IsDate({ message: 'due date must be valid date' })
+  @IsFutureDate({ message: 'due date must be valid future date' })
   dueDate?: Date;
 }

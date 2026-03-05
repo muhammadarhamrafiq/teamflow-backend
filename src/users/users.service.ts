@@ -5,6 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 import { UserCreateInput, UserUpdateInput } from 'src/generated/prisma/models';
 import { FinalizeInvitationStatus } from './dto/update-dtos';
+import { TasksService } from 'src/tasks/tasks.service';
 
 @Injectable()
 export class UsersService {
@@ -12,6 +13,7 @@ export class UsersService {
     private readonly prismaService: PrismaService,
     private readonly passwordService: PasswordService,
     private readonly membershipService: MembershipService,
+    private readonly taskService: TasksService,
   ) {}
 
   async register(data: UserCreateInput) {
@@ -72,11 +74,17 @@ export class UsersService {
   }
 
   async deleteUser(id: string) {
-    await this.prismaService.user.update({
-      where: { id, deletedAt: null },
-      data: {
-        deletedAt: new Date(),
-      },
+    return this.prismaService.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id, deletedAt: null },
+        data: {
+          deletedAt: new Date(),
+        },
+      });
+
+      await this.taskService.userLeft(tx, id);
+
+      return user;
     });
   }
 

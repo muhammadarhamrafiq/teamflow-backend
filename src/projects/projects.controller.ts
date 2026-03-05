@@ -12,9 +12,8 @@ import {
 } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project-dto';
-import { Roles } from 'src/orgs/decorators/roles.decorator';
-import { MemberShipGuard } from 'src/orgs/guards/member.guard';
-import { RolesGuard } from 'src/orgs/guards/roles.guard';
+import { Roles } from 'src/commons/helpers/roles.decorator';
+import { RolesGuard } from 'src/commons/guards/roles.guard';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 import { ApiParam } from '@nestjs/swagger';
 
@@ -24,10 +23,12 @@ import {
   UpdateProjectDto,
   UpdateProjectStatusDto,
 } from './dto/update-project-dto';
+import { ResourceIntegrityGuard } from 'src/commons/guards/resource-integrity.guard';
+import { Resources } from 'src/commons/helpers/resource.decorator';
 
 @ApiAuth()
 @ApiParam({ name: 'orgId' })
-@UseGuards(MemberShipGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Controller({
   path: 'orgs/:orgId/projects',
   version: '1',
@@ -84,15 +85,20 @@ export class ProjectsController {
 
   @Patch(':projectId')
   @Roles('OWNER', 'ADMIN')
+  @UseGuards(ResourceIntegrityGuard)
+  @Resources({
+    parent: 'organization',
+    parentKey: 'orgId',
+    resource: 'project',
+    resourceKey: 'projectId',
+  })
   async updateProject(
     @Param('projectId') projectId: string,
     @Body() updateProjectDto: UpdateProjectDto,
-    @Param('orgId') organizationId: string,
   ) {
     const project = await this.projectsService.updateProject(
       projectId,
       updateProjectDto,
-      organizationId,
     );
     return {
       message: 'Project updated successfully',
@@ -102,14 +108,19 @@ export class ProjectsController {
 
   @Patch(':projectId/status')
   @Roles('OWNER', 'ADMIN')
+  @UseGuards(ResourceIntegrityGuard)
+  @Resources({
+    parent: 'organization',
+    parentKey: 'orgId',
+    resource: 'project',
+    resourceKey: 'projectId',
+  })
   async updateStatus(
     @Param('projectId') projectId: string,
     @Body() updateProjectStatusDto: UpdateProjectStatusDto,
-    @Param('orgId') organizationId: string,
   ) {
     const project = await this.projectsService.updateProjectStatus(
       projectId,
-      organizationId,
       updateProjectStatusDto.status,
     );
     return {
@@ -120,15 +131,15 @@ export class ProjectsController {
 
   @Delete(':projectId')
   @Roles('OWNER', 'ADMIN')
-  async deleteProject(
-    @Param('projectId') projectId: string,
-    @Body() updateProjectStatusDto: UpdateProjectStatusDto,
-    @Param('orgId') organizationId: string,
-  ) {
-    const project = await this.projectsService.deleteProject(
-      projectId,
-      organizationId,
-    );
+  @UseGuards(ResourceIntegrityGuard)
+  @Resources({
+    parent: 'organization',
+    parentKey: 'orgId',
+    resource: 'project',
+    resourceKey: 'projectId',
+  })
+  async deleteProject(@Param('projectId') projectId: string) {
+    const project = await this.projectsService.deleteProject(projectId);
     return {
       message: 'Project deleted',
       project,

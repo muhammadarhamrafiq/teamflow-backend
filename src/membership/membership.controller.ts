@@ -12,9 +12,8 @@ import {
 } from '@nestjs/common';
 import { MembershipService } from './membership.service';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
-import { MemberShipGuard } from 'src/orgs/guards/member.guard';
-import { RolesGuard } from 'src/orgs/guards/roles.guard';
-import { Roles } from 'src/orgs/decorators/roles.decorator';
+import { RolesGuard } from 'src/commons/guards/roles.guard';
+import { Roles } from 'src/commons/helpers/roles.decorator';
 
 import type { Request } from 'express';
 import { CreateInviteDto } from './dto/create-invited-dto';
@@ -24,7 +23,7 @@ import { UpdateRoleDto } from './dto/update-role-dto';
 @ApiAuth()
 @ApiTags('Membership')
 @ApiParam({ name: 'orgId' })
-@UseGuards(MemberShipGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Controller({
   path: 'orgs/:orgId',
 })

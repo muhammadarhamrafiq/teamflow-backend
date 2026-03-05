@@ -13,10 +13,9 @@ import {
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 
 import { OrgsService } from './orgs.service';
-import { RolesGuard } from './guards/roles.guard';
-import { MemberShipGuard } from './guards/member.guard';
+import { RolesGuard } from '../commons/guards/roles.guard';
 
-import { Roles } from './decorators/roles.decorator';
+import { Roles } from '../commons/helpers/roles.decorator';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 
 import type { Request } from 'express';
@@ -55,7 +54,7 @@ export class OrgsController {
 
   @ApiAuth()
   @Get(':slug')
-  @UseGuards(MemberShipGuard)
+  @UseGuards(RolesGuard)
   async getOrg(@Req() req: Request, @Param('slug') slug: string) {
     const { role } = req.orgMembership!;
     const org = await this.orgsService.getOrg(slug);
@@ -67,7 +66,7 @@ export class OrgsController {
 
   @ApiAuth()
   @Get(':orgId/members')
-  @UseGuards(MemberShipGuard)
+  @UseGuards(RolesGuard)
   async getMembers(@Param('orgId') organizationId: string) {
     const members = await this.orgsService.getMembers(organizationId);
     return {
@@ -79,7 +78,7 @@ export class OrgsController {
   @ApiParam({ name: 'orgId' })
   @ApiAuth()
   @Get(':orgId/projects')
-  @UseGuards(MemberShipGuard)
+  @UseGuards(RolesGuard)
   async getProjects(@Req() req: Request) {
     const { organizationId, userId, role } = req.orgMembership!;
     const projects = await this.orgsService.getProjects(
@@ -95,8 +94,8 @@ export class OrgsController {
 
   @ApiAuth()
   @Patch(':orgId')
-  @Roles('OWNER')
   @UseGuards(RolesGuard)
+  @Roles('OWNER')
   async updateData(
     @Param('orgId') organizationId: string,
     @Body() updateOrgDto: UpdateOrgDto,
