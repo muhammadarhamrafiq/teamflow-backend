@@ -109,10 +109,7 @@ export class ProjectsService {
 
     const projects = await this.prismaService.project.findMany({
       where,
-      orderBy: {
-        createdAt: 'desc',
-        updatedAt: 'desc',
-      },
+      orderBy: [{ createdAt: 'desc' }, { updatedAt: 'desc' }],
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -248,7 +245,7 @@ export class ProjectsService {
         newStatus = 'ACTIVE';
       else if (!hasTask && proj.projectStatus !== 'PLANNING')
         newStatus = 'ON_HOLD';
-      else throw new ForbiddenException('Invalid status update');
+      else return;
     }
     if (newStatus === proj.projectStatus) return proj;
 

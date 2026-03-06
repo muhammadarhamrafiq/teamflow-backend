@@ -14,6 +14,7 @@ import { TASK_WORKFLOW } from './helpers/workflow';
 
 import type { TASK_WORKFLOW_TYPE } from './helpers/workflow';
 import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
+import { PaginationDto } from 'src/commons/helpers/pagination-dto';
 @Injectable()
 export class TasksService {
   private readonly lockedProjectStates: Set<ProjectStatus>;
@@ -98,7 +99,7 @@ export class TasksService {
     projectId: string,
     userId: string,
     role: Role,
-    pagination?: { page: number; limit: number },
+    pagination?: PaginationDto,
   ) {
     /**
      * If the user is access the tasks only return the task where he has the assigneeId
@@ -116,7 +117,7 @@ export class TasksService {
     const tasks = await this.prismaService.task.findMany({
       where,
       include: { assignee: { select: { id: true, name: true } } },
-      orderBy: { startDate: 'desc', dueDate: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { startDate: 'desc' }],
       skip: (page - 1) * limit,
       take: limit,
     });

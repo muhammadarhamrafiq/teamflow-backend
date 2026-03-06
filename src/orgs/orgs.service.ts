@@ -80,12 +80,28 @@ export class OrgsService {
     }));
   }
 
-  async getOrg(slug: string) {
-    const org = await this.prismaService.organization.findUnique({
-      where: { slug },
+  async getOrg(slug: string, userId: string) {
+    const org = await this.prismaService.organization.findFirst({
+      where: {
+        slug,
+        organizationUsers: {
+          some: { userId },
+        },
+      },
+
+      include: {
+        organizationUsers: true,
+      },
     });
     if (!org) throw new NotFoundException('Organization not found');
-    return org;
+    return {
+      id: org.id,
+      name: org.name,
+      description: org.description,
+      logo: org.logoUrl,
+      slug: org.slug,
+      myRole: org.organizationUsers[0].role,
+    };
   }
 
   async getMembers(id: string) {

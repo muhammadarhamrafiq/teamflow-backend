@@ -39,9 +39,11 @@ export class RolesGuard implements CanActivate {
 
     if (!membership) throw new UnauthorizedException();
 
-    if (!requiredRoles || requiredRoles.length === 0) return true;
-
-    if (!requiredRoles.includes(membership.role))
+    if (
+      requiredRoles &&
+      requiredRoles.length !== 0 &&
+      !requiredRoles.includes(membership.role)
+    )
       throw new ForbiddenException('Permission Denied');
 
     request.orgMembership = membership;

@@ -6,13 +6,13 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 import { RolesGuard } from 'src/commons/guards/roles.guard';
-import { ApiParam } from '@nestjs/swagger';
 import { Roles } from 'src/commons/helpers/roles.decorator';
 import { CreateTaskDto } from './dto/create-task-dto';
 
@@ -20,9 +20,11 @@ import type { Request } from 'express';
 import { UpdateTaskDto, UpdateTaskStatusDto } from './dto/update-task-dto';
 import { ResourceIntegrityGuard } from 'src/commons/guards/resource-integrity.guard';
 import { Resources } from 'src/commons/helpers/resource.decorator';
+import { PaginationDto } from 'src/commons/helpers/pagination-dto';
+import { ApiParam } from '@nestjs/swagger';
 
 @ApiAuth()
-@ApiParam({ name: 'orgId' })
+@ApiParam({ name: 'projectId' })
 @UseGuards(RolesGuard)
 @Controller({
   path: 'projects/:projectId/tasks',
@@ -52,9 +54,18 @@ export class TasksController {
   }
 
   @Get()
-  async getTasks(@Param('projectId') projectId: string, @Req() req: Request) {
+  async getTasks(
+    @Param('projectId') projectId: string,
+    @Req() req: Request,
+    @Query() pagination: PaginationDto,
+  ) {
     const { userId, role } = req.orgMembership!;
-    const tasks = await this.tasksService.getTasks(projectId, userId, role);
+    const tasks = await this.tasksService.getTasks(
+      projectId,
+      userId,
+      role,
+      pagination,
+    );
     return {
       message: 'Tasks fetched',
       tasks,

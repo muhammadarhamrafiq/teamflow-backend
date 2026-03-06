@@ -54,13 +54,12 @@ export class OrgsController {
 
   @ApiAuth()
   @Get(':slug')
-  @UseGuards(RolesGuard)
   async getOrg(@Req() req: Request, @Param('slug') slug: string) {
-    const { role } = req.orgMembership!;
-    const org = await this.orgsService.getOrg(slug);
+    const { id } = req.user!;
+    const org = await this.orgsService.getOrg(slug, id);
     return {
       message: 'Organization fetched',
-      org: { ...org, myRole: role },
+      org,
     };
   }
 

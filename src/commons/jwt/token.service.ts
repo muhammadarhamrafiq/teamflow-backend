@@ -69,9 +69,10 @@ export class TokenService {
     type: string,
   ): Promise<T> {
     try {
-      return this.jwtService.verifyAsync<T>(token, {
+      const payload = await this.jwtService.verifyAsync<T>(token, {
         secret: this.configService.get<string>(`JWT_${type}_SECRET`),
       });
+      return payload;
     } catch {
       throw new UnauthorizedException();
     }
