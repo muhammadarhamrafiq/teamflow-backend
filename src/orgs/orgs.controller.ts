@@ -3,22 +3,26 @@ import {
   Controller,
   Delete,
   Get,
-  NotImplementedException,
   Param,
   Patch,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiParam, ApiTags } from '@nestjs/swagger';
 
 import { OrgsService } from './orgs.service';
 import { RolesGuard } from '../commons/guards/roles.guard';
+
+import { FileInterceptor } from '@nestjs/platform-express';
 
 import { Roles } from '../commons/helpers/roles.decorator';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 
 import type { Request } from 'express';
+import type { Express } from 'express';
 import { CreateOrgDto } from './dto/create-org-dto';
 import { UpdateOrgDto } from './dto/update-org-dto';
 
@@ -110,12 +114,34 @@ export class OrgsController {
   }
 
   @ApiAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
   @Patch(':orgId/logo')
-  @Roles('OWNER')
   @UseGuards(RolesGuard)
-  updateLogo() {
-    // TODO: Add the update Logo later after the setup of image uploading is done
-    throw new NotImplementedException();
+  @Roles('OWNER')
+  @UseInterceptors(FileInterceptor('file'))
+  async updateLogo(
+    @Param('orgId') organizationId: string,
+    @UploadedFile('file') logo: Express.Multer.File,
+  ) {
+    const organization = await this.orgsService.updateLogo(
+      organizationId,
+      logo.buffer,
+    );
+    return {
+      message: 'Logo updated successfully',
+      organization,
+    };
   }
 
   @ApiAuth()

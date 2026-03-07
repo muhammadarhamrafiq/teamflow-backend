@@ -10,10 +10,14 @@ import type {
   ProjectWhereInput,
 } from 'src/generated/prisma/models';
 import type { Role } from 'src/generated/prisma/enums';
+import { CloudinaryService } from 'src/commons/cloudinary/cloudinary.service';
 
 @Injectable()
 export class OrgsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   private async generateSlug(name: string) {
     const baseSlug = slugify(name, {
@@ -176,6 +180,16 @@ export class OrgsService {
     return this.prismaService.organization.update({
       where: { id },
       data: data,
+    });
+  }
+
+  async updateLogo(id: string, file: Buffer) {
+    const logoUrl = await this.cloudinaryService.uploadFile(file);
+    return this.prismaService.organization.update({
+      where: { id },
+      data: {
+        logoUrl,
+      },
     });
   }
 

@@ -6,7 +6,7 @@ import { validate } from './env.validation';
 @Module({
   imports: [
     NestJSConfiModule.forRoot({
-      envFilePath: '.env',
+      ignoreEnvFile: true,
       validate,
     }),
   ],

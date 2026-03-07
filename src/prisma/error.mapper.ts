@@ -3,9 +3,15 @@ import {
   ConflictException,
   HttpException,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+
+const returnInternalServerExpection = (err: PrismaClientKnownRequestError) => {
+  Logger.error(err.message, err.stack);
+  return new InternalServerErrorException('Database Exception Occured');
+};
 
 const handlePrismaKnownError = (
   err: PrismaClientKnownRequestError,
@@ -26,10 +32,7 @@ const handlePrismaKnownError = (
   };
 
   const code = err.code;
-  return (
-    errorMap[code]?.() ||
-    new InternalServerErrorException('Database Exception Occured')
-  );
+  return errorMap[code]?.() || returnInternalServerExpection(err);
 };
 
 export { handlePrismaKnownError };

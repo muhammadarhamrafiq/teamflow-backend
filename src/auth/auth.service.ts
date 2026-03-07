@@ -9,6 +9,7 @@ import { PasswordService } from 'src/commons/security/password.service';
 import { TokenService } from '../commons/jwt/token.service';
 import { SessionService } from './services/sessions.service';
 import { UsersService } from 'src/users/users.service';
+import { MailService } from 'src/mailer/mail.service';
 
 import type { EmailDto } from './dto/email-dto';
 import type { SignInDto } from './dto/sign-in-dto';
@@ -22,6 +23,7 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly sessionService: SessionService,
+    private readonly mailService: MailService,
   ) {}
 
   private async validateUser(email: string, password: string) {
@@ -49,15 +51,18 @@ export class AuthService {
      */
     const user = await this.userService.findUserByEmail(registerDto.email);
     if (user) throw new ConflictException('User with this email already exits');
-    const token = this.tokenService.generateActionToken(
+    const token = await this.tokenService.generateActionToken(
       {
         email: registerDto.email,
         purpose: 'verify_email',
       },
       '30m',
     );
-    // TODO: Remove this return after the emailing is setuped
-    return token;
+
+    await this.mailService.sendVerificationEmail(
+      registerDto.email,
+      token.token,
+    );
   }
 
   async signIn(
@@ -151,7 +156,9 @@ export class AuthService {
   }
 
   async updateEmail(id: string, newEmail: string) {
-    // TODO: Later send email to new Email instead of sending the token as response
+    const existingUser = await this.userService.findUserByEmail(newEmail);
+    if (existingUser) throw new ConflictException('Email is already is use');
+
     const token = await this.tokenService.generateActionToken(
       {
         purpose: 'update_email',
@@ -161,24 +168,22 @@ export class AuthService {
       '30m',
     );
 
-    return token;
+    await this.mailService.sendUpdateEmail(newEmail, token.token);
   }
 
   async resetPassword(email: string) {
     const user = await this.userService.findUserByEmail(email);
 
-    // TODO: Later send the email instead to send token as response
-    if (user) {
-      const token = await this.tokenService.generateActionToken(
-        {
-          purpose: 'reset_password',
-          userId: user.id,
-        },
-        '15m',
-      );
-      return token;
-    }
+    if (!user) return;
 
-    return null;
+    const token = await this.tokenService.generateActionToken(
+      {
+        purpose: 'reset_password',
+        userId: user.id,
+      },
+      '15m',
+    );
+
+    await this.mailService.sendPasswordReset(user.email, token.token);
   }
 }

@@ -29,11 +29,9 @@ export class AuthController {
   @Post('register')
   @Public()
   async register(@Body() registerDto: EmailDto) {
-    // TODO: Donot send the tokens in response once email service is seted
-    const token = await this.authService.register(registerDto);
+    await this.authService.register(registerDto);
     return {
       message: 'Check you email to confirm registeration',
-      token,
     };
   }
 
@@ -160,23 +158,19 @@ export class AuthController {
   @ApiAuth()
   @Post('/update-email')
   async updateEmail(@Req() req: Request, @Body() updateEmailDto: EmailDto) {
-    // TODO: Donot return the token after the emailing service is setuped
     const { id } = req.user!;
-    const token = await this.authService.updateEmail(id, updateEmailDto.email);
+    await this.authService.updateEmail(id, updateEmailDto.email);
     return {
       message: 'Check you inbox to verify email',
-      token,
     };
   }
 
   @Public()
   @Post('/reset-password')
   async resetPassword(@Body() updatePasswordDto: EmailDto) {
-    // TODO: Donot return the token after emailing service is setuped
-    const token = await this.authService.resetPassword(updatePasswordDto.email);
+    await this.authService.resetPassword(updatePasswordDto.email);
     return {
       message: 'Check you inbox to reset the password',
-      token,
     };
   }
 }

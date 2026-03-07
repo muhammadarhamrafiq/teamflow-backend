@@ -7,9 +7,10 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './guards/auth.guard';
 import { UsersModule } from 'src/users/users.module';
 import { JwtModule } from 'src/commons/jwt/jwt.module';
+import { MailModule } from 'src/mailer/mail.module';
 
 @Module({
-  imports: [SecurityModule, UsersModule, JwtModule],
+  imports: [SecurityModule, UsersModule, JwtModule, MailModule],
   controllers: [AuthController],
   providers: [
     AuthService,
