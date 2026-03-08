@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
@@ -13,7 +17,7 @@ export class CloudinaryService {
     });
   }
 
-  async uploadFile(fileBuffer: Buffer, fileName?: string) {
+  async uploadFile(fileBuffer: Buffer) {
     if (!fileBuffer || fileBuffer.length === 0) {
       throw new InternalServerErrorException('File is empty');
     }
@@ -24,7 +28,6 @@ export class CloudinaryService {
           {
             folder: 'teamflow',
             resource_type: 'auto',
-            public_id: fileName?.replace(/\.[^/.]+$/, ''), // optional: strip extension for custom name
           },
           (error, result) => {
             if (error)
@@ -36,11 +39,21 @@ export class CloudinaryService {
         Readable.from(fileBuffer).pipe(uploadStream);
       });
 
-      return upload.secure_url;
-    } catch {
+      return upload;
+    } catch (error: unknown) {
+      Logger.error(error);
       throw new InternalServerErrorException(
         'Something went wrong while uploading file',
       );
+    }
+  }
+
+  async removeFile(publicId: string) {
+    try {
+      await cloudinary.uploader.destroy(publicId);
+    } catch (error: unknown) {
+      Logger.error(error);
+      return;
     }
   }
 }

@@ -134,7 +134,7 @@ export class UsersController {
   @ApiAuth()
   @Get(':email')
   async getUserByEmail(@Param('email') email: string) {
-    const user = await this.usersService.findUserByEmail(email);
+    const user = await this.usersService.findUserByEmail(email, true);
     return {
       messgae: user ? 'User fetched successfully' : 'User Not Found',
       user: {

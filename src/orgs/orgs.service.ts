@@ -184,18 +184,35 @@ export class OrgsService {
   }
 
   async updateLogo(id: string, file: Buffer) {
-    const logoUrl = await this.cloudinaryService.uploadFile(file);
-    return this.prismaService.organization.update({
+    const org = await this.prismaService.organization.findUnique({
+      where: { id },
+    });
+
+    if (!org) throw new NotFoundException('Organization Not Found');
+
+    const upload = await this.cloudinaryService.uploadFile(file);
+    const updatedOrg = await this.prismaService.organization.update({
       where: { id },
       data: {
-        logoUrl,
+        logoUrl: upload.secure_url,
+        logoPublicId: upload.public_id,
       },
     });
+
+    if (org.logoPublicId)
+      await this.cloudinaryService.removeFile(org.logoPublicId);
+
+    return updatedOrg;
   }
 
   async deleteOrg(id: string) {
-    return this.prismaService.organization.delete({
+    const org = await this.prismaService.organization.delete({
       where: { id },
     });
+
+    if (org.logoPublicId)
+      await this.cloudinaryService.removeFile(org.logoPublicId);
+
+    return org;
   }
 }

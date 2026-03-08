@@ -3,6 +3,8 @@ dist
 src/generated/prisma
 
 .env
+.env.*
+
 .git
 .gitignore
 

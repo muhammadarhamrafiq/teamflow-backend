@@ -40,10 +40,12 @@ enum InvitationStatus {
 }
 
 model User {
-  id       String @id @default(uuid())
-  name     String
-  email    String
-  password String
+  id             String  @id @default(uuid())
+  name           String
+  email          String
+  password       String
+  avatarUrl      String?
+  avatarPublicId String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -75,11 +77,12 @@ model UserOrganization {
 }
 
 model Organization {
-  id          String  @id @default(uuid())
-  name        String
-  description String? @default("No description available for this organization")
-  slug        String  @unique
-  logoUrl     String?
+  id           String  @id @default(uuid())
+  name         String
+  description  String? @default("No description available for this organization")
+  slug         String  @unique
+  logoUrl      String?
+  logoPublicId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

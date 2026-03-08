@@ -5,11 +5,12 @@ import { JwtModule } from 'src/commons/jwt/jwt.module';
 import { SecurityModule } from 'src/commons/security/security.module';
 import { MembershipModule } from 'src/membership/membership.module';
 import { TasksModule } from 'src/tasks/tasks.module';
+import { CloudinaryService } from 'src/commons/cloudinary/cloudinary.service';
 
 @Module({
   imports: [JwtModule, SecurityModule, MembershipModule, TasksModule],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, CloudinaryService],
   exports: [UsersService],
 })
 export class UsersModule {}
