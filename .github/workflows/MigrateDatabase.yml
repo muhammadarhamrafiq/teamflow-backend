@@ -2,7 +2,7 @@ name: 'Build And Deploy'
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, expiriments/test-ci]
   workflow_dispatch:
 
 jobs:
