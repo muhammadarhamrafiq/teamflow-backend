@@ -48,6 +48,9 @@ jobs:
 
   restart-server:
     runs-on: ubuntu-24.04
+    env:
+      WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+      RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
     needs:
       - deploy
     steps:
@@ -58,9 +61,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Azure Cli Script
+      - name: Restart Web App
         uses: azure/cli@v2
         with:
           azcliversion: latest
           inlineScript: |
-            az account show
+            az webapp restart --name "$WEBAPP_NAME" --resource-group "$RESOURCE_GROUP"
