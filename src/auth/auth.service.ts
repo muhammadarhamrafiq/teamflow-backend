@@ -59,7 +59,7 @@ export class AuthService {
       '30m',
     );
 
-    await this.mailService.sendVerificationEmail(
+    await this.mailService.sendRegisterationEmail(
       registerDto.email,
       token.token,
     );

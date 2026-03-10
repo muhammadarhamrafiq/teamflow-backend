@@ -64,6 +64,7 @@ class EnvironmentVariables {
   JWT_ACCESS_EXPIRES_IN: string;
   JWT_REFRESH_EXPIRES_IN: string;
   REDIS_PASSWORD: string;
+  REDIS_TLS: string;
 }
 
 export function validate(config: Record<string, unknown>) {

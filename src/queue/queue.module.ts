@@ -11,7 +11,21 @@ const bullModule = BullModule.forRootAsync({
       host: configService.get<string>('REDIS_HOST'),
       port: configService.get<number>('REDIS_PORT'),
       password: configService.get<string>('REDIS_PASSWORD') || undefined,
-      tls: {},
+      tls:
+        configService.get<string>('REDIS_TLS', 'false') === 'true'
+          ? {}
+          : undefined,
+
+      offlineQueue: false,
+      connectTimeout: 10000,
+      maxRetriesPerRequest: null,
+
+      retryStrategy: (times: number) => {
+        if (times > 10) {
+          return null;
+        }
+        return Math.min(times * 200, 2000);
+      },
     },
   }),
 });

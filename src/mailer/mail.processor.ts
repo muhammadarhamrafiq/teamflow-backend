@@ -4,6 +4,10 @@ import { Job } from 'bullmq';
 import { Resend } from 'resend';
 import { EmailData } from 'src/queue/queue.service';
 
+import path from 'node:path';
+import fs from 'fs';
+import { Logger } from '@nestjs/common';
+
 @Processor('default')
 export class MailProcessor extends WorkerHost {
   private resend: Resend;
@@ -21,28 +25,44 @@ export class MailProcessor extends WorkerHost {
     this.resend = new Resend(apiKey);
   }
 
+  private generateTemplate(template: string, url: string, token: string) {
+    const templatePath = path.join(__dirname, 'templates', template);
+    let htmlTemplate: string = fs.readFileSync(templatePath, 'utf-8');
+    // replace placeholders
+    htmlTemplate = htmlTemplate.replace(
+      '{{verify_url}}',
+      `${this.frontendUrl}/${url}?token=${token}`,
+    );
+
+    return htmlTemplate;
+  }
+
   async process(job: Job) {
-    switch (job.name) {
-      case 'email_verification':
-        await this.handleEmailVerification(job.data as EmailData);
-        break;
-      case 'password_reset':
-        await this.handlePasswordReset(job.data as EmailData);
-        break;
-      case 'update_email':
-        await this.handleUpdateEmail(job.data as EmailData);
-        break;
+    try {
+      switch (job.name) {
+        case 'register_email':
+          await this.handleRegisterationMail(job.data as EmailData);
+          break;
+        case 'password_reset':
+          await this.handlePasswordReset(job.data as EmailData);
+          break;
+        case 'update_email':
+          await this.handleUpdateEmail(job.data as EmailData);
+          break;
+      }
+    } catch (error: unknown) {
+      Logger.error(error);
     }
   }
 
-  async handleEmailVerification(data: EmailData) {
+  async handleRegisterationMail(data: EmailData) {
     const { email, token } = data;
 
     await this.resend.emails.send({
       from: `TeamFlow <noreply@${this.emailDomain}>`,
       to: email,
       subject: 'Verify your email',
-      html: `<a href="${this.frontendUrl}/verify?token=${token}">Verify Email</a>`,
+      html: this.generateTemplate('registerEmail.html', 'register', token),
     });
   }
 
@@ -52,7 +72,11 @@ export class MailProcessor extends WorkerHost {
       from: `TeamFlow <noreply@${this.emailDomain}>`,
       to: email,
       subject: 'Reset you Password',
-      html: `<a href="${this.frontendUrl}/verify?token=${token}">Verify Email</a>`,
+      html: this.generateTemplate(
+        'passwordReset.html',
+        'reset-password',
+        token,
+      ),
     });
   }
 
@@ -62,7 +86,7 @@ export class MailProcessor extends WorkerHost {
       from: `TeamFlow <noreply@${this.emailDomain}>`,
       to: email,
       subject: 'Update you email',
-      html: `<a href="${this.frontendUrl}/verify?token=${token}">Verify Email</a>`,
+      html: this.generateTemplate('updateEmail.html', 'verify-email', token),
     });
   }
 }

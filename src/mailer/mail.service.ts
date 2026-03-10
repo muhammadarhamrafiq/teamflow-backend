@@ -5,8 +5,8 @@ import { QueueService } from 'src/queue/queue.service';
 export class MailService {
   constructor(private readonly queueService: QueueService) {}
 
-  async sendVerificationEmail(email: string, token: string) {
-    await this.queueService.addEmailVerification({ email, token });
+  async sendRegisterationEmail(email: string, token: string) {
+    await this.queueService.addRegister({ email, token });
   }
 
   async sendPasswordReset(email: string, token: string) {

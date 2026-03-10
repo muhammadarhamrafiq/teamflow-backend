@@ -11,8 +11,8 @@ export type EmailData = {
 export class QueueService {
   constructor(@InjectQueue('default') private queue: Queue) {}
 
-  async addEmailVerification(data: EmailData) {
-    return this.queue.add('email_verification', data, {
+  async addRegister(data: EmailData) {
+    return this.queue.add('register_email', data, {
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 },
     });
