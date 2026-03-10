@@ -8,9 +8,11 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiQuery } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiQuery } from '@nestjs/swagger';
 
 import { UsersService } from './users.service';
 import { ActionTokenGuard } from './guards/action-token.guard';
@@ -26,6 +28,7 @@ import {
   UpdatePasswordDto,
 } from './dto/update-dtos';
 import { RegisterUserDto } from './dto/register-dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller({
   path: 'users',
@@ -100,6 +103,44 @@ export class UsersController {
     const user = await this.usersService.update(id, data);
     return {
       message: 'Name updated succefully',
+      user,
+    };
+  }
+
+  @ApiAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @Patch('update-avatar')
+  @UseInterceptors(FileInterceptor('avatar'))
+  async updateAvatar(
+    @Req() req: Request,
+    @UploadedFile('avatar') avatar: Express.Multer.File,
+  ) {
+    const { id } = req.user!;
+    const user = await this.usersService.updateAvatar(id, avatar.buffer);
+    return {
+      message: 'Avatar updated successfully',
+      user,
+    };
+  }
+
+  @ApiAuth()
+  @Patch('remove-avatar')
+  async removeAvatar(@Req() req: Request) {
+    const { id } = req.user!;
+    const user = await this.usersService.removeAvatar(id);
+    return {
+      message: 'Avatar updated successfully',
       user,
     };
   }

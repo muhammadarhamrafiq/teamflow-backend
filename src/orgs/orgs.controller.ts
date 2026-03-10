@@ -119,7 +119,7 @@ export class OrgsController {
     schema: {
       type: 'object',
       properties: {
-        file: {
+        logo: {
           type: 'string',
           format: 'binary',
         },
@@ -129,10 +129,10 @@ export class OrgsController {
   @Patch(':orgId/logo')
   @UseGuards(RolesGuard)
   @Roles('OWNER')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('logo'))
   async updateLogo(
     @Param('orgId') organizationId: string,
-    @UploadedFile('file') logo: Express.Multer.File,
+    @UploadedFile('logo') logo: Express.Multer.File,
   ) {
     const organization = await this.orgsService.updateLogo(
       organizationId,
