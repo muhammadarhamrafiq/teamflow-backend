@@ -14,7 +14,7 @@ RUN npm run build
 RUN rm -rf node_modules
 
 # stage 2 - run the production image
-FROM node:24-alpine3.22 As production
+FROM node:24-alpine3.22 AS production
 
 WORKDIR /app
 

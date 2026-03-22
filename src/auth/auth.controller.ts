@@ -9,7 +9,7 @@ import {
   HttpCode,
 } from '@nestjs/common';
 import { Public } from 'src/commons/helpers/public.decorator';
-import { ApiCookieAuth } from '@nestjs/swagger';
+import { ApiCookieAuth, ApiResponse } from '@nestjs/swagger';
 import { RefreshGuard } from './guards/refresh.guard';
 import { AuthService } from './auth.service';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
@@ -18,6 +18,11 @@ import type { Request, Response } from 'express';
 import type { JwtPayload } from './interfaces/jwt-payload';
 import { SignInDto } from './dto/sign-in-dto';
 import { EmailDto } from './dto/email-dto';
+import {
+  RegisterResponseDto,
+  ResetPasswordDto,
+  SignInResponseDto,
+} from './dto/responses-dto';
 
 @Controller({
   path: 'auth',
@@ -28,7 +33,12 @@ export class AuthController {
 
   @Post('register')
   @Public()
-  async register(@Body() registerDto: EmailDto) {
+  @ApiResponse({
+    status: 201,
+    description: 'Emailed the user to complete registeration process',
+    type: RegisterResponseDto,
+  })
+  async register(@Body() registerDto: EmailDto): Promise<RegisterResponseDto> {
     await this.authService.register(registerDto);
     return {
       message: 'Check you email to confirm registeration',
@@ -38,11 +48,16 @@ export class AuthController {
   @Post('sign-in')
   @Public()
   @HttpCode(200)
+  @ApiResponse({
+    status: 200,
+    description: 'Signed in the user',
+    type: SignInResponseDto,
+  })
   async signIn(
     @Body() signInDto: SignInDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ) {
+  ): Promise<SignInResponseDto> {
     /**
      * Extract Request Data
      * Pass to the service
@@ -63,12 +78,14 @@ export class AuthController {
     res.cookie('access_token', payload.accessToken.token, {
       httpOnly: true,
       secure: true,
+      sameSite: 'none',
       maxAge: payload.accessToken.expiresIn,
     });
 
     res.cookie('refresh_token', payload.refreshToken.token, {
       httpOnly: true,
       secure: true,
+      sameSite: 'none',
       maxAge: payload.refreshToken.expiresIn,
     });
 
@@ -96,12 +113,14 @@ export class AuthController {
     res.cookie('access_token', accessToken.token, {
       httpOnly: true,
       secure: true,
+      sameSite: 'none',
       maxAge: accessToken.expiresIn,
     });
 
     res.cookie('refresh_token', refreshToken.token, {
       httpOnly: true,
       secure: true,
+      sameSite: 'none',
       maxAge: refreshToken.expiresIn,
     });
 
@@ -165,9 +184,17 @@ export class AuthController {
     };
   }
 
+  @ApiResponse({
+    status: 200,
+    description: 'Request for reseting the password',
+    type: ResetPasswordDto,
+  })
   @Public()
   @Post('/reset-password')
-  async resetPassword(@Body() updatePasswordDto: EmailDto) {
+  @HttpCode(200)
+  async resetPassword(
+    @Body() updatePasswordDto: EmailDto,
+  ): Promise<ResetPasswordDto> {
     await this.authService.resetPassword(updatePasswordDto.email);
     return {
       message: 'Check you inbox to reset the password',

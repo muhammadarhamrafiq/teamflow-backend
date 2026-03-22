@@ -40,7 +40,12 @@ export class AuthService {
     if (!validPassword || !user)
       throw new UnauthorizedException('Invalid Credentials');
 
-    return { id: user.id, email: user.email };
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+    };
   }
 
   async register(registerDto: EmailDto) {
