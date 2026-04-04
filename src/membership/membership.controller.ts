@@ -11,7 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { MembershipService } from './membership.service';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RolesGuard } from 'src/commons/guards/roles.guard';
 import { Roles } from 'src/commons/helpers/roles.decorator';
 
@@ -19,6 +19,8 @@ import type { Request } from 'express';
 import { CreateInviteDto } from './dto/create-invited-dto';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 import { UpdateRoleDto } from './dto/update-role-dto';
+import { GetMembersResponseDto } from './dto/responses-dto';
+import { GetMembersDto } from './dto/get-mems-dto';
 
 @ApiAuth()
 @ApiTags('Membership')
@@ -85,6 +87,24 @@ export class MembershipController {
     return {
       message: 'Status fetch',
       inviteInfo,
+    };
+  }
+
+  @ApiAuth()
+  @ApiResponse({ status: 200, type: GetMembersResponseDto })
+  @Get('/mems')
+  async getMembers(
+    @Param('orgId') organizationId: string,
+    @Query() query: GetMembersDto,
+  ): Promise<GetMembersResponseDto> {
+    const { members, pagination } = await this.membershipService.getMembers(
+      organizationId,
+      query,
+    );
+    return {
+      message: 'Members Fetched Successfully',
+      members,
+      pagination,
     };
   }
 

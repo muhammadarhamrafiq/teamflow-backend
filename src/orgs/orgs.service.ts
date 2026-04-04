@@ -5,12 +5,9 @@ import slugify from 'slugify';
 
 import type { CreateOrgDto } from './dto/create-org-dto';
 import type { UpdateOrgDto } from './dto/update-org-dto';
-import type {
-  OrganizationUpdateInput,
-  ProjectWhereInput,
-} from 'src/generated/prisma/models';
-import type { Role } from 'src/generated/prisma/enums';
+import type { OrganizationUpdateInput } from 'src/generated/prisma/models';
 import { CloudinaryService } from 'src/commons/cloudinary/cloudinary.service';
+import { Project } from 'src/generated/prisma/client';
 
 @Injectable()
 export class OrgsService {
@@ -39,6 +36,32 @@ export class OrgsService {
     return slug;
   }
 
+  private getProjectsSummary(projects: Project[]) {
+    const projectSummary = {
+      totalProjects: projects.length,
+      completedProjects: 0,
+      overDueProjects: 0,
+      inProgressProjects: 0,
+    };
+    const currDate = new Date();
+
+    for (const project of projects) {
+      if (project.projectStatus === 'COMPLETED')
+        projectSummary.completedProjects++;
+      else {
+        projectSummary.inProgressProjects++;
+        if (project.dueDate && project.dueDate > currDate) {
+          projectSummary.overDueProjects++;
+        }
+      }
+    }
+
+    return projectSummary;
+  }
+
+  /**
+   * Create Organization
+   */
   async create(organization: CreateOrgDto, userId: string) {
     /**
      * Generate the slug
@@ -58,12 +81,27 @@ export class OrgsService {
           },
         },
       },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        logoUrl: true,
+        slug: true,
+      },
     });
   }
 
-  async getOrgs(userId: string) {
+  /**
+   * Get All Organizations
+   */
+  async getOrgs(userId: string, search?: string) {
     const orgs = await this.prismaService.userOrganization.findMany({
-      where: { userId },
+      where: {
+        userId,
+        organization: {
+          name: { contains: search || '', mode: 'insensitive' },
+        },
+      },
 
       select: {
         role: true,
@@ -84,6 +122,9 @@ export class OrgsService {
     }));
   }
 
+  /**
+   * Get Organization By Slug
+   */
   async getOrg(slug: string, userId: string) {
     const org = await this.prismaService.organization.findFirst({
       where: {
@@ -95,74 +136,29 @@ export class OrgsService {
 
       include: {
         organizationUsers: true,
+        projects: {
+          where: { projectStatus: { not: 'ARCHIVED' } },
+        },
       },
     });
+
     if (!org) throw new NotFoundException('Organization not found');
+    const projectsSummary = this.getProjectsSummary(org.projects);
+
     return {
       id: org.id,
       name: org.name,
       description: org.description,
-      logo: org.logoUrl,
+      logoUrl: org.logoUrl,
       slug: org.slug,
       myRole: org.organizationUsers[0].role,
+      projectsSummary,
     };
   }
 
-  async getMembers(id: string) {
-    const members = await this.prismaService.userOrganization.findMany({
-      where: {
-        organizationId: id,
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-
-    return members.map((m) => ({
-      userId: m.userId,
-      name: m.user.name,
-      email: m.user.email,
-      role: m.role,
-      joinedSince: m.createdAt,
-      roleSince: m.updatedAt,
-    }));
-  }
-
-  async getProjects(organizationId: string, userId: string, role: Role) {
-    /**
-     * if the role is ADMIN or OWNER return all project
-     * else return the project where the user has assigned task
-     */
-    let where: ProjectWhereInput;
-    if (role === 'OWNER' || role === 'ADMIN') {
-      where = {
-        organizationId,
-      };
-    } else {
-      where = {
-        organizationId,
-        tasks: {
-          some: { assigneeId: userId },
-        },
-      };
-    }
-
-    return this.prismaService.project.findMany({
-      where,
-      omit: {
-        organizationId: true,
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-    });
-  }
-
+  /**
+   * Update Organization Data
+   */
   async updateData(id: string, updateDto: UpdateOrgDto) {
     /**
      * if name is updated regenerate the slug
@@ -180,9 +176,20 @@ export class OrgsService {
     return this.prismaService.organization.update({
       where: { id },
       data: data,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        slug: true,
+        logoUrl: true,
+        updatedAt: true,
+      },
     });
   }
 
+  /**
+   * Update Logo Url
+   */
   async updateLogo(id: string, file: Buffer) {
     const org = await this.prismaService.organization.findUnique({
       where: { id },
@@ -196,6 +203,14 @@ export class OrgsService {
       data: {
         logoUrl: upload.secure_url,
         logoPublicId: upload.public_id,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        slug: true,
+        logoUrl: true,
+        updatedAt: true,
       },
     });
 
@@ -213,6 +228,9 @@ export class OrgsService {
     if (org.logoPublicId)
       await this.cloudinaryService.removeFile(org.logoPublicId);
 
-    return org;
+    return {
+      id: org.id,
+      name: org.name,
+    };
   }
 }

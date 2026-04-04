@@ -1,27 +1,37 @@
-# stage 1 - build the application
-FROM node:24-alpine3.22 AS builder
-
+FROM node:24-alpine3.22 AS base
 WORKDIR /app
+COPY package.json package-lock.json ./
 
-COPY package*.json ./
-RUN npm ci --only=development --omit=optional && npm cache clean --force
+FROM base AS deps
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=optional
+
+# Development Target
+FROM deps AS development
+ENV NODE_ENV=development
+COPY . .
+RUN npx prisma generate || true
+EXPOSE 3000
+CMD ["npm", "run", "start:dev"]
+
+# Build Target
+FROM deps AS builder
 
 COPY . .
 
 RUN npx prisma generate
 RUN npm run build
+RUN --mount=type=cache,target=/root/.npm npm prune --omit=dev
 
-RUN rm -rf node_modules
-
-# stage 2 - run the production image
+# Production Target
 FROM node:24-alpine3.22 AS production
-
 WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-
+ENV NODE_ENV=production
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/src/generated ./src/generated
 
+USER node
 EXPOSE 3000
 CMD ["node", "dist/src/main.js"]

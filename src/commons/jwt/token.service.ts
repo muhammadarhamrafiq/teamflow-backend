@@ -73,7 +73,8 @@ export class TokenService {
         secret: this.configService.get<string>(`JWT_${type}_SECRET`),
       });
       return payload;
-    } catch {
+    } catch (err) {
+      console.error(err);
       throw new UnauthorizedException();
     }
   }

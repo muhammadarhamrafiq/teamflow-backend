@@ -140,6 +140,64 @@ export class MembershipService {
     };
   }
 
+  /**
+   * Get organization Members
+   */
+  async getMembers(
+    id: string,
+    query?: { page?: number; limit?: number; search?: string },
+  ) {
+    const { page = 1, limit = 10, search = '' } = query || {};
+
+    const members = await this.prismaService.userOrganization.findMany({
+      where: {
+        organizationId: id,
+        user: {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { id: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const totalMembers = await this.prismaService.userOrganization.count({
+      where: {
+        organizationId: id,
+      },
+    });
+
+    return {
+      members: members.map((m) => ({
+        userId: m.userId,
+        name: m.user.name,
+        email: m.user.email,
+        avatarUrl: m.user.avatarUrl,
+        role: m.role,
+        joinedSince: m.createdAt,
+      })),
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalMembers / limit),
+        totalItems: totalMembers,
+      },
+    };
+  }
+
   async getInvites(organizationId: string) {
     const invites = await this.prismaService.membershipInvite.findMany({
       where: { organizationId, status: 'PENDING' },
