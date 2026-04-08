@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { InvitationStatusDto } from './membership-dto';
 
 export class UserDto {
   @ApiProperty({
@@ -19,4 +20,8 @@ export class UserDto {
 export class UserDtoWithUpdatedAt extends UserDto {
   @ApiProperty({})
   updatedAt: Date;
+}
+
+export class UserDToWithInvitationStatus extends UserDto {
+  invitationStatus: InvitationStatusDto;
 }

@@ -9,6 +9,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import type { InvitationStatus, Role } from 'src/generated/prisma/enums';
 import type { CreateInviteDto } from './dto/create-invited-dto';
 import { TasksService } from 'src/tasks/tasks.service';
+import { GetCandidatesDto } from './dto/get-candidates-dto';
+import {
+  PaginationDto,
+  PaginationResponseDto,
+} from 'src/commons/helpers/pagination-dto';
+import { InviteDto } from 'src/commons/dto/membership-dto';
 
 @Injectable()
 export class MembershipService {
@@ -17,7 +23,119 @@ export class MembershipService {
     private readonly taskService: TasksService,
   ) {}
 
-  async invite(organizationId: string, createInviteDto: CreateInviteDto) {
+  private async isLastOwner(userId: string, organizationId: string) {
+    const remainingOwners = await this.prismaService.userOrganization.count({
+      where: { organizationId, role: 'OWNER', NOT: { userId: userId } },
+    });
+    return remainingOwners === 0;
+  }
+
+  private async getStatus(organizationId: string, userId: string) {
+    const membership = await this.prismaService.userOrganization.findUnique({
+      where: {
+        userId_organizationId: {
+          organizationId,
+          userId,
+        },
+      },
+    });
+
+    const invitation = await this.prismaService.membershipInvite.findFirst({
+      where: {
+        userId,
+        organizationId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      isMember: membership ? true : false,
+      invitationStatus: invitation?.status,
+    };
+  }
+
+  private async createMemberShip(invitationId: string) {
+    return this.prismaService.$transaction(async (tx) => {
+      const invite = await tx.membershipInvite.update({
+        where: { id: invitationId },
+        data: { status: 'ACCEPTED' },
+      });
+
+      const membership = await tx.userOrganization.create({
+        data: {
+          userId: invite.userId,
+          organizationId: invite.organizationId,
+          role: invite.role,
+        },
+      });
+
+      return { invite, membership };
+    });
+  }
+
+  /**
+   * Get Candidates for the membership invites
+   */
+  async getCandidates(organizationId: string, query: GetCandidatesDto) {
+    const { email, limit = 20, page = 1 } = query;
+    const users = await this.prismaService.user.findMany({
+      where: {
+        email: { contains: email, mode: 'insensitive' },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        userOrganizations: {
+          where: { organizationId },
+        },
+        membershipInvites: {
+          where: { organizationId },
+        },
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const totalUser = await this.prismaService.user.count({
+      where: {
+        email: { contains: email, mode: 'insensitive' },
+      },
+    });
+
+    const formatedUser = users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      invitationStatus: {
+        isMember: user.userOrganizations[0] ? true : false,
+        invited: user.membershipInvites[0] ? true : false,
+        invitationStatus: user.membershipInvites[0]?.status,
+      },
+    }));
+
+    return {
+      users: formatedUser,
+      pagination: {
+        totalPages: Math.ceil(totalUser / limit),
+        totalItems: totalUser,
+        page,
+        limit,
+      },
+    };
+  }
+
+  /**
+   * Create Invitation
+   */
+  async invite(
+    organizationId: string,
+    createInviteDto: CreateInviteDto,
+  ): Promise<InviteDto> {
     /**
      * Validate the membership does not exits already
      * Create and return the invite
@@ -44,13 +162,31 @@ export class MembershipService {
     );
     if (existingPending) throw new ConflictException('User is already invited');
 
-    return this.prismaService.membershipInvite.create({
+    const createdInvitation = await this.prismaService.membershipInvite.create({
       data: {
         userId,
         organizationId,
         role,
       },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
+
+    return {
+      id: createdInvitation.id,
+      email: createdInvitation.user.email,
+      name: createdInvitation.user.name,
+      avatarUrl: createdInvitation.user.avatarUrl,
+      role: createdInvitation.role,
+      invitedSince: createdInvitation.createdAt,
+    };
   }
 
   async updateInvite(id: string, status: InvitationStatus) {
@@ -80,25 +216,6 @@ export class MembershipService {
     }
   }
 
-  private async createMemberShip(invitationId: string) {
-    return this.prismaService.$transaction(async (tx) => {
-      const invite = await tx.membershipInvite.update({
-        where: { id: invitationId },
-        data: { status: 'ACCEPTED' },
-      });
-
-      const membership = await tx.userOrganization.create({
-        data: {
-          userId: invite.userId,
-          organizationId: invite.organizationId,
-          role: invite.role,
-        },
-      });
-
-      return { invite, membership };
-    });
-  }
-
   async cancelInvitation(id: string, organizationId: string) {
     const deleted = await this.prismaService.membershipInvite.deleteMany({
       where: {
@@ -110,34 +227,6 @@ export class MembershipService {
 
     if (deleted.count === 0)
       throw new ForbiddenException('Invitation not found or already finalized');
-
-    return { message: 'Invitation cancelled successfully' };
-  }
-
-  async getStatus(organizationId: string, userId: string) {
-    const membership = await this.prismaService.userOrganization.findUnique({
-      where: {
-        userId_organizationId: {
-          organizationId,
-          userId,
-        },
-      },
-    });
-
-    const invitation = await this.prismaService.membershipInvite.findFirst({
-      where: {
-        userId,
-        organizationId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    return {
-      isMember: membership ? true : false,
-      invitationStatus: invitation?.status,
-    };
   }
 
   /**
@@ -198,22 +287,46 @@ export class MembershipService {
     };
   }
 
-  async getInvites(organizationId: string) {
+  /**
+   * Get Invites
+   */
+  async getInvites(
+    organizationId: string,
+    pagination: PaginationDto,
+  ): Promise<{ invites: InviteDto[]; pagination: PaginationResponseDto }> {
+    const { limit = 20, page = 1 }: PaginationDto = pagination;
+
     const invites = await this.prismaService.membershipInvite.findMany({
       where: { organizationId, status: 'PENDING' },
       include: {
         user: true,
       },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return invites.map((inv) => ({
+    const totalInvites = await this.prismaService.membershipInvite.count({
+      where: { organizationId, status: 'PENDING' },
+    });
+
+    const formatedInvites = invites.map((inv) => ({
       id: inv.id,
-      invitedOn: inv.createdAt,
-      username: inv.user.name,
+      name: inv.user.name,
       email: inv.user.email,
-      userId: inv.userId,
       role: inv.role,
+      invitedSince: inv.createdAt,
+      avatarUrl: inv.user.avatarUrl,
     }));
+
+    return {
+      invites: formatedInvites,
+      pagination: {
+        limit,
+        page,
+        totalPages: Math.ceil(totalInvites / limit),
+        totalItems: totalInvites,
+      },
+    };
   }
 
   async updateRole(userId: string, organizationId: string, role: Role) {
@@ -246,13 +359,6 @@ export class MembershipService {
         role,
       },
     });
-  }
-
-  private async isLastOwner(userId: string, organizationId: string) {
-    const remainingOwners = await this.prismaService.userOrganization.count({
-      where: { organizationId, role: 'OWNER', NOT: { userId: userId } },
-    });
-    return remainingOwners === 0;
   }
 
   async removeMembership(userId: string, organizationId: string) {
