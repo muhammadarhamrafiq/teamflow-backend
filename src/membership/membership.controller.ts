@@ -28,7 +28,6 @@ import {
 } from './dto/responses-dto';
 import { GetMembersDto } from './dto/get-mems-dto';
 import { GetCandidatesDto } from './dto/get-candidates-dto';
-import { PaginationDto } from 'src/commons/helpers/pagination-dto';
 
 @ApiAuth()
 @ApiTags('Membership')
@@ -99,7 +98,7 @@ export class MembershipController {
   @Roles('OWNER')
   async getInvites(
     @Req() req: Request,
-    @Query() query: PaginationDto,
+    @Query() query: GetMembersDto,
   ): Promise<GetInvitesResponseDto> {
     const { organizationId } = req.orgMembership!;
     const { invites, pagination } = await this.membershipService.getInvites(

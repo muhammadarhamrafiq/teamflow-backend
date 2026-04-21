@@ -10,11 +10,9 @@ import type { InvitationStatus, Role } from 'src/generated/prisma/enums';
 import type { CreateInviteDto } from './dto/create-invited-dto';
 import { TasksService } from 'src/tasks/tasks.service';
 import { GetCandidatesDto } from './dto/get-candidates-dto';
-import {
-  PaginationDto,
-  PaginationResponseDto,
-} from 'src/commons/helpers/pagination-dto';
+import { PaginationResponseDto } from 'src/commons/helpers/pagination-dto';
 import { InviteDto } from 'src/commons/dto/membership-dto';
+import { GetMembersDto } from './dto/get-mems-dto';
 
 @Injectable()
 export class MembershipService {
@@ -292,12 +290,21 @@ export class MembershipService {
    */
   async getInvites(
     organizationId: string,
-    pagination: PaginationDto,
+    query: GetMembersDto,
   ): Promise<{ invites: InviteDto[]; pagination: PaginationResponseDto }> {
-    const { limit = 20, page = 1 }: PaginationDto = pagination;
+    const { limit = 20, page = 1, search = '' } = query;
 
     const invites = await this.prismaService.membershipInvite.findMany({
-      where: { organizationId, status: 'PENDING' },
+      where: {
+        organizationId,
+        status: 'PENDING',
+        user: {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+      },
       include: {
         user: true,
       },
@@ -409,7 +416,6 @@ export class MembershipService {
     return invites.map((inv) => ({
       id: inv.id,
       organizationName: inv.organization.name,
-      organizationSlug: inv.organization.slug,
       organizationLogo: inv.organization.logoUrl,
       invitedOn: inv.createdAt,
       role: inv.role,

@@ -70,3 +70,20 @@ export class InvitationStatusDto {
   @ApiProperty({ example: 'PENDING' })
   inviteStatus?: InvitationStatus;
 }
+
+export class MembershipInvitationDto {
+  @ApiProperty({ example: 'a62ad1b2-3abe-43b7-8511-82e7d15e1811' })
+  id: string;
+
+  @ApiProperty({ example: 'Aceme Inc' })
+  organizationName: string;
+
+  @ApiProperty({ example: 'https://domain.com/resource' })
+  organizationLogo: string;
+
+  @ApiProperty()
+  invitedOn: Date;
+
+  @ApiProperty({ example: 'MEMBER' })
+  role: Role;
+}

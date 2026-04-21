@@ -34,7 +34,12 @@ import {
 import { RegisterUserDto } from './dto/register-dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 
-import { RegisterResponseDto, UpdatedUserResponse } from './dto/responses-dto';
+import {
+  GetUserInvitesDto,
+  RegisterResponseDto,
+  UpdatedUserResponse,
+  UpdateInvitationStatusDto,
+} from './dto/responses-dto';
 
 @Controller({
   path: 'users',
@@ -90,12 +95,16 @@ export class UsersController {
     await this.usersService.deleteUser(id);
   }
 
+  @ApiResponse({
+    status: 200,
+    type: UpdatedUserResponse,
+  })
   @ApiQuery({ name: 'token' })
   @Public()
   @Patch('email')
   @Purpose('update_email')
   @UseGuards(ActionTokenGuard)
-  async updateEmail(@Req() req: Request) {
+  async updateEmail(@Req() req: Request): Promise<UpdatedUserResponse> {
     const { userId, email } = req.action!;
     const user = await this.usersService.update(userId!, { email });
     return {
@@ -126,6 +135,11 @@ export class UsersController {
     };
   }
 
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully reset the password',
+    type: UpdatedUserResponse,
+  })
   @ApiAuth()
   @Patch('name')
   async updateName(@Body() data: UpdateNameDto, @Req() req: Request) {
@@ -193,6 +207,10 @@ export class UsersController {
     };
   }
 
+  @ApiResponse({
+    status: 200,
+    type: GetUserInvitesDto,
+  })
   @ApiAuth()
   @Get('invites')
   async getInvites(@Req() req: Request) {
@@ -204,33 +222,19 @@ export class UsersController {
     };
   }
 
+  @ApiResponse({
+    status: 200,
+    type: UpdateInvitationStatusDto,
+  })
   @ApiAuth()
   @Patch('invites/:inviteId')
   async updateInvite(
     @Param('inviteId') inviteId: string,
     @Query() updateInviteStatus: updateInviteStatusDto,
   ) {
-    const response = await this.usersService.updateInvite(
-      inviteId,
-      updateInviteStatus.status,
-    );
+    await this.usersService.updateInvite(inviteId, updateInviteStatus.status);
     return {
       message: 'Status updated succesfully',
-      ...response,
-    };
-  }
-
-  @ApiAuth()
-  @Get(':email')
-  async getUserByEmail(@Param('email') email: string) {
-    const user = await this.usersService.findUserByEmail(email, true);
-    return {
-      messgae: user ? 'User fetched successfully' : 'User Not Found',
-      user: {
-        id: user?.id,
-        name: user?.name,
-        email: user?.email,
-      },
     };
   }
 }

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { MembershipInvitationDto } from 'src/commons/dto/membership-dto';
 import { UserDto, UserDtoWithUpdatedAt } from 'src/commons/dto/user-dto';
 
 export class RegisterResponseDto {
@@ -25,4 +26,17 @@ export class UpdatedUserResponse {
 
   @ApiProperty({ type: UserDtoWithUpdatedAt })
   user: UserDtoWithUpdatedAt;
+}
+
+export class GetUserInvitesDto {
+  @ApiProperty({ example: 'Invitations Fetched Successfull' })
+  message: string;
+
+  @ApiProperty({ type: MembershipInvitationDto, isArray: true })
+  invitations: MembershipInvitationDto[];
+}
+
+export class UpdateInvitationStatusDto {
+  @ApiProperty({ example: 'Invitations Fetched Successfull' })
+  message: string;
 }
