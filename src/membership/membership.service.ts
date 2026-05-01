@@ -91,7 +91,7 @@ export class MembershipService {
           where: { organizationId },
         },
         membershipInvites: {
-          where: { organizationId },
+          where: { organizationId, status: 'PENDING' },
         },
       },
       skip: (page - 1) * limit,

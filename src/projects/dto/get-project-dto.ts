@@ -1,15 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { IsOptional } from 'class-validator';
 import { PaginationDto } from 'src/commons/helpers/pagination-dto';
+import { ProjectStatus } from 'src/generated/prisma/enums';
 
 export class GetProjectDto extends PaginationDto {
-  @ApiPropertyOptional({
-    example: 1,
-    description: 'Page number, starting from 1',
-  })
+  @ApiPropertyOptional()
   @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  archieved?: boolean = false;
+  search?: string;
+
+  @ApiPropertyOptional({})
+  @IsOptional()
+  projectStatus?: ProjectStatus;
 }

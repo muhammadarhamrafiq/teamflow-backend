@@ -11,6 +11,13 @@ import { ProjectWhereInput } from 'src/generated/prisma/models';
 import { Task } from 'src/generated/prisma/client';
 import { UpdateProjectDto } from './dto/update-project-dto';
 import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
+import {
+  ProjectBaseDto,
+  ProjectDetailDto,
+  ProjectStatusUpdateDto,
+  ProjectWithUpdatedAtDto,
+} from 'src/commons/dto/project-dto';
+import { PaginationResponseDto } from 'src/commons/helpers/pagination-dto';
 
 @Injectable()
 export class ProjectsService {
@@ -68,36 +75,62 @@ export class ProjectsService {
     return taskData;
   }
 
-  async create(data: { organizationId: string } & CreateProjectDto) {
+  /**
+   * Create Project
+   */
+  async create(
+    data: { organizationId: string } & CreateProjectDto,
+  ): Promise<ProjectBaseDto> {
     const slug = await this.generateSlug(data.name, data.organizationId);
     const project = await this.prismaService.project.create({
       data: {
         ...data,
         slug,
       },
+
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        slug: true,
+        dueDate: true,
+        createdAt: true,
+        projectStatus: true,
+      },
     });
-    return project;
+
+    return {
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      slug: project.slug,
+      dueDate: project.dueDate,
+      startOn: project.createdAt,
+      status: project.projectStatus,
+    };
   }
 
+  /**
+   * Get Projects
+   */
   async getProjects(
     membership: { organizationId: string; userId: string; role: Role },
-    pagination?: { page?: number; limit?: number },
-    archived?: boolean,
-  ) {
+    pagination?: { page?: number; limit?: number; search?: string },
+    projectStatus?: ProjectStatus,
+  ): Promise<{
+    projects: ProjectBaseDto[];
+    pagination: PaginationResponseDto;
+  }> {
     const { organizationId, userId, role } = membership;
-    const { page = 1, limit = 10 } = pagination || {};
+    const { page = 1, limit = 10, search = '' } = pagination || {};
 
     const where: ProjectWhereInput = {
       organizationId,
+      name: {
+        contains: search,
+        mode: 'insensitive',
+      },
     };
-
-    if (archived) {
-      where.projectStatus = 'ARCHIVED';
-    } else {
-      where.NOT = {
-        projectStatus: 'ARCHIVED',
-      };
-    }
 
     if (role === 'MEMBER') {
       where.tasks = {
@@ -105,6 +138,12 @@ export class ProjectsService {
           assigneeId: userId,
         },
       };
+    }
+
+    if (!projectStatus) {
+      where.NOT = { projectStatus: 'ARCHIVED' };
+    } else {
+      where.projectStatus = projectStatus;
     }
 
     const projects = await this.prismaService.project.findMany({
@@ -117,11 +156,20 @@ export class ProjectsService {
     const projectsCount = await this.prismaService.project.count({ where });
 
     return {
-      projects,
+      projects: projects.map((proj) => ({
+        id: proj.id,
+        name: proj.name,
+        slug: proj.slug,
+        description: proj.description,
+        dueDate: proj.dueDate,
+        startOn: proj.createdAt,
+        status: proj.projectStatus,
+      })),
       pagination: {
         page,
         limit,
         totalPages: Math.ceil(projectsCount / limit),
+        totalItems: projectsCount,
       },
     };
   }
@@ -129,7 +177,7 @@ export class ProjectsService {
   async getProject(
     slug: string,
     membership: { organizationId: string; userId: string; role: Role },
-  ) {
+  ): Promise<ProjectDetailDto> {
     const { organizationId, userId, role } = membership;
 
     const where: ProjectWhereInput = {
@@ -154,7 +202,7 @@ export class ProjectsService {
 
     if (!project) throw new NotFoundException('Project not found');
 
-    const avaibleactions = this.transactions[project.projectStatus];
+    const availableActions = this.transactions[project.projectStatus];
 
     const tasksCounts = this.getTasksCount(project.tasks);
 
@@ -163,15 +211,21 @@ export class ProjectsService {
       name: project.name,
       status: project.projectStatus,
       slug: project.slug,
-      createdAt: project.createdAt,
+      startOn: project.createdAt,
       dueDate: project.dueDate,
       description: project.description,
       tasksCounts,
-      avaibleactions,
+      availableActions,
     };
   }
 
-  async updateProject(id: string, updateProjectDto: UpdateProjectDto) {
+  /**
+   * Update Project
+   */
+  async updateProject(
+    id: string,
+    updateProjectDto: UpdateProjectDto,
+  ): Promise<ProjectWithUpdatedAtDto> {
     const proj = await this.prismaService.project.findFirst({
       where: { id, NOT: { projectStatus: 'ARCHIVED' } },
     });
@@ -187,21 +241,41 @@ export class ProjectsService {
     return this.prismaService.project.update({
       where: { id },
       data,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        slug: true,
+        updatedAt: true,
+      },
     });
   }
 
-  async updateProjectStatus(id: string, status: ProjectStatus) {
+  /*
+   * Project Status Update
+   */
+  async updateProjectStatus(
+    id: string,
+    status: ProjectStatus,
+  ): Promise<ProjectStatusUpdateDto> {
     const proj = await this.prismaService.project.findFirst({
       where: { id },
     });
 
     if (!proj) throw new NotFoundException('Project not found');
-    return await this.updateProjectStatusInternal(
+
+    const updatedProject = await this.updateProjectStatusInternal(
       id,
       this.prismaService,
       true,
       status,
     );
+
+    return {
+      id: updatedProject.id,
+      lastUpdatedAt: updatedProject.updatedAt,
+      status: updatedProject.projectStatus,
+    };
   }
 
   async updateProjectStatusInternal(
@@ -245,7 +319,7 @@ export class ProjectsService {
         newStatus = 'ACTIVE';
       else if (!hasTask && proj.projectStatus !== 'PLANNING')
         newStatus = 'ON_HOLD';
-      else return;
+      else return proj;
     }
     if (newStatus === proj.projectStatus) return proj;
 

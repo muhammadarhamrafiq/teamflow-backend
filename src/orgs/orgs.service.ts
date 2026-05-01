@@ -135,7 +135,7 @@ export class OrgsService {
       },
 
       include: {
-        organizationUsers: true,
+        organizationUsers: { where: { userId } },
         projects: {
           where: { projectStatus: { not: 'ARCHIVED' } },
         },

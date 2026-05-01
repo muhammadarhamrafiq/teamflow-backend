@@ -79,7 +79,7 @@ export class MembershipInvitationDto {
   organizationName: string;
 
   @ApiProperty({ example: 'https://domain.com/resource' })
-  organizationLogo: string;
+  organizationLogo: string | null;
 
   @ApiProperty()
   invitedOn: Date;
