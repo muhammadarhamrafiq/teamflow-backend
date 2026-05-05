@@ -14,7 +14,14 @@ import { TASK_WORKFLOW } from './helpers/workflow';
 
 import type { TASK_WORKFLOW_TYPE } from './helpers/workflow';
 import { TransactionClient } from 'src/generated/prisma/internal/prismaNamespace';
-import { PaginationDto } from 'src/commons/helpers/pagination-dto';
+import { PaginationResponseDto } from 'src/commons/helpers/pagination-dto';
+import {
+  TaskBaseDto,
+  TaskWithAssigneeDto,
+  TaskWithFullDetailsDto,
+  TaskWithUpdatedAt,
+} from 'src/commons/dto/task-dto';
+import { GetTaskDto } from './dto/get-task-dto';
 @Injectable()
 export class TasksService {
   private readonly lockedProjectStates: Set<ProjectStatus>;
@@ -60,11 +67,14 @@ export class TasksService {
       throw new ForbiddenException('User is not member of organization');
   }
 
+  /**
+   * Create Task
+   */
   async createTask(
     createTaskDto: CreateTaskDto,
     organizationId: string,
     projectId: string,
-  ) {
+  ): Promise<TaskBaseDto> {
     /**
      * Validate the start data is less the end data
      * Validate the provided user is part of the organization
@@ -92,31 +102,60 @@ export class TasksService {
       return task;
     });
 
-    return task;
+    return {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.taskStatus,
+      projectId: task.projectId,
+      assigneeId: task.assigneeId,
+      dueDate: task.dueDate,
+      startDate: task.startDate,
+    };
   }
 
+  /**
+   * Get Tasks
+   */
   async getTasks(
     projectId: string,
     userId: string,
     role: Role,
-    pagination?: PaginationDto,
-  ) {
+    query?: GetTaskDto,
+  ): Promise<{
+    tasks: TaskWithAssigneeDto[];
+    pagination: PaginationResponseDto;
+  }> {
     /**
      * If the user is access the tasks only return the task where he has the assigneeId
      * Apply the pagination
      * Return the tasks with the count of comments on it
      */
 
+    const { page = 1, limit = 20, search = '', status } = query ?? {};
+
     const where: TaskWhereInput = {
       projectId,
+      OR: [
+        {
+          title: { contains: search, mode: 'insensitive' },
+        },
+        {
+          description: { contains: search, mode: 'insensitive' },
+        },
+      ],
     };
 
     if (role === 'MEMBER') where.assigneeId = userId;
-    const { page = 1, limit = 20 } = pagination ?? {};
+    if (status) where.taskStatus = status;
 
     const tasks = await this.prismaService.task.findMany({
       where,
-      include: { assignee: { select: { id: true, name: true } } },
+      include: {
+        assignee: {
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        },
+      },
       orderBy: [{ updatedAt: 'desc' }, { startDate: 'desc' }],
       skip: (page - 1) * limit,
       take: limit,
@@ -125,16 +164,32 @@ export class TasksService {
     const totalCount = await this.prismaService.task.count({ where });
 
     return {
-      tasks,
+      tasks: tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        status: task.taskStatus,
+        startDate: task.startDate,
+        dueDate: task.dueDate,
+        assignee: task.assignee,
+      })),
       pagination: {
         page,
         limit,
-        totalCount: Math.ceil(totalCount / limit),
+        totalItems: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
       },
     };
   }
 
-  async getTask(taskId: string, userId: string, role: Role) {
+  /**
+   * Get Tasks Details
+   */
+  async getTask(
+    taskId: string,
+    userId: string,
+    role: Role,
+  ): Promise<TaskWithFullDetailsDto> {
     const where: TaskWhereInput = {
       id: taskId,
     };
@@ -149,6 +204,7 @@ export class TasksService {
             id: true,
             name: true,
             email: true,
+            avatarUrl: true,
           },
         },
         project: {
@@ -166,13 +222,26 @@ export class TasksService {
 
     if (!task) throw new NotFoundException('Task not found');
     return {
-      ...task,
-      comments: task.comments.length,
-      nextStates: this.getNextAllowedStatus(task.taskStatus, role),
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.taskStatus,
+      dueDate: task.dueDate,
+      startDate: task.startDate,
+      commentsCount: task.comments.length,
+      allowedActions: this.getNextAllowedStatus(task.taskStatus, role),
+      assignee: task.assignee,
+      project: task.project,
     };
   }
 
-  async updateTask(taskId: string, updateTaskDto: UpdateTaskDto) {
+  /**
+   * Update Task
+   */
+  async updateTask(
+    taskId: string,
+    updateTaskDto: UpdateTaskDto,
+  ): Promise<TaskWithUpdatedAt> {
     /**
      * if update project contains a date validate it
      * validate the project is not archieved or complete
@@ -207,17 +276,22 @@ export class TasksService {
 
     if (updateTaskDto.assigneeId)
       await this.validateUserMembership(
-        updateTaskDto.assigneeId,
         task.project.organizationId,
+        updateTaskDto.assigneeId,
       );
 
     return this.prismaService.task.update({
       where: { id: taskId },
       data: updateTaskDto,
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+      },
     });
   }
 
-  async deleteTask(taskId: string) {
+  async deleteTask(taskId: string): Promise<TaskWithUpdatedAt> {
     const task = await this.prismaService.task.findUnique({
       where: { id: taskId },
       select: {
@@ -243,7 +317,11 @@ export class TasksService {
 
       await this.projectService.updateProjectStatusInternal(task.projectId, tx);
 
-      return task;
+      return {
+        id: task.id,
+        title: task.title,
+        updatedAt: task.updatedAt,
+      };
     });
   }
 
@@ -251,7 +329,7 @@ export class TasksService {
     taskId: string,
     status: TaskStatus,
     user: { id: string; role: Role },
-  ) {
+  ): Promise<TaskWithUpdatedAt> {
     /**
      * Validate the project is ACTIVE
      * Validate its valid transaction by valid role
@@ -290,7 +368,11 @@ export class TasksService {
 
       await this.projectService.updateProjectStatusInternal(task.projectId, tx);
 
-      return task;
+      return {
+        id: task.id,
+        title: task.title,
+        updatedAt: task.updatedAt,
+      };
     });
   }
 

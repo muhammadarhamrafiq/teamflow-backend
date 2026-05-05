@@ -20,8 +20,14 @@ import type { Request } from 'express';
 import { UpdateTaskDto, UpdateTaskStatusDto } from './dto/update-task-dto';
 import { ResourceIntegrityGuard } from 'src/commons/guards/resource-integrity.guard';
 import { Resources } from 'src/commons/helpers/resource.decorator';
-import { PaginationDto } from 'src/commons/helpers/pagination-dto';
-import { ApiParam } from '@nestjs/swagger';
+import { ApiParam, ApiResponse } from '@nestjs/swagger';
+import {
+  CreateTaskResponseDto,
+  GetTaskResponseDto,
+  GetTasksResponseDto,
+  UpdateTaskResponseDto,
+} from './dto/response-dto';
+import { GetTaskDto } from './dto/get-task-dto';
 
 @ApiAuth()
 @ApiParam({ name: 'projectId' })
@@ -33,13 +39,20 @@ import { ApiParam } from '@nestjs/swagger';
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
+  /**
+   * Create Task
+   */
+  @ApiResponse({
+    status: 201,
+    type: CreateTaskResponseDto,
+  })
   @Post()
   @Roles('OWNER', 'ADMIN')
   async createTask(
     @Body() createTaskDto: CreateTaskDto,
     @Req() req: Request,
     @Param('projectId') projectId: string,
-  ) {
+  ): Promise<CreateTaskResponseDto> {
     const { organizationId } = req.orgMembership!;
     const task = await this.tasksService.createTask(
       createTaskDto,
@@ -53,25 +66,40 @@ export class TasksController {
     };
   }
 
+  /**
+   * Get Tasks of the project
+   */
+  @ApiResponse({
+    status: 200,
+    type: GetTasksResponseDto,
+  })
   @Get()
   async getTasks(
     @Param('projectId') projectId: string,
     @Req() req: Request,
-    @Query() pagination: PaginationDto,
-  ) {
+    @Query() query: GetTaskDto,
+  ): Promise<GetTasksResponseDto> {
     const { userId, role } = req.orgMembership!;
-    const tasks = await this.tasksService.getTasks(
+    const { tasks, pagination } = await this.tasksService.getTasks(
       projectId,
       userId,
       role,
-      pagination,
+      query,
     );
     return {
       message: 'Tasks fetched',
       tasks,
+      pagination,
     };
   }
 
+  /**
+   * Get Single Task
+   */
+  @ApiResponse({
+    status: 200,
+    type: GetTaskResponseDto,
+  })
   @Get(':taskId')
   @UseGuards(ResourceIntegrityGuard)
   @Resources({
@@ -80,7 +108,10 @@ export class TasksController {
     resource: 'task',
     resourceKey: 'taskId',
   })
-  async getTask(@Param('taskId') taskId: string, @Req() req: Request) {
+  async getTask(
+    @Param('taskId') taskId: string,
+    @Req() req: Request,
+  ): Promise<GetTaskResponseDto> {
     const { userId, role } = req.orgMembership!;
     const task = await this.tasksService.getTask(taskId, userId, role);
     return {
@@ -89,6 +120,13 @@ export class TasksController {
     };
   }
 
+  /**
+   * Update Task
+   */
+  @ApiResponse({
+    status: 200,
+    type: UpdateTaskResponseDto,
+  })
   @Patch(':taskId')
   @Roles('OWNER', 'ADMIN')
   @UseGuards(ResourceIntegrityGuard)
@@ -101,7 +139,7 @@ export class TasksController {
   async updateTask(
     @Body() updateTaskDto: UpdateTaskDto,
     @Param('taskId') taskId: string,
-  ) {
+  ): Promise<UpdateTaskResponseDto> {
     const task = await this.tasksService.updateTask(taskId, updateTaskDto);
     return {
       message: 'Task updated',
@@ -109,6 +147,13 @@ export class TasksController {
     };
   }
 
+  /**
+   * Update Task Status
+   */
+  @ApiResponse({
+    status: 200,
+    type: UpdateTaskResponseDto,
+  })
   @Patch(':taskId/status')
   @UseGuards(ResourceIntegrityGuard)
   @Resources({
@@ -121,7 +166,7 @@ export class TasksController {
     @Param('taskId') taskId: string,
     @Body() updateStatusDto: UpdateTaskStatusDto,
     @Req() req: Request,
-  ) {
+  ): Promise<UpdateTaskResponseDto> {
     const { userId, role } = req.orgMembership!;
     const task = await this.tasksService.updateTaskStatus(
       taskId,
@@ -138,6 +183,14 @@ export class TasksController {
     };
   }
 
+  /**
+   * Delete Task
+   */
+  @ApiResponse({
+    status: 200,
+    description: 'Task deleted successfully',
+    type: UpdateTaskResponseDto,
+  })
   @Delete(':taskId')
   @UseGuards(ResourceIntegrityGuard)
   @Resources({
@@ -146,7 +199,9 @@ export class TasksController {
     resource: 'task',
     resourceKey: 'taskId',
   })
-  async deleteTask(@Param('taskId') taskId: string) {
+  async deleteTask(
+    @Param('taskId') taskId: string,
+  ): Promise<UpdateTaskResponseDto> {
     const task = await this.tasksService.deleteTask(taskId);
     return {
       message: 'task deleted',
