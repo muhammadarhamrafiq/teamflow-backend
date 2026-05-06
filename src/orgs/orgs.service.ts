@@ -50,7 +50,7 @@ export class OrgsService {
         projectSummary.completedProjects++;
       else {
         projectSummary.inProgressProjects++;
-        if (project.dueDate && project.dueDate > currDate) {
+        if (project.dueDate && project.dueDate < currDate) {
           projectSummary.overDueProjects++;
         }
       }

@@ -4,7 +4,11 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PaginationDto } from 'src/commons/helpers/pagination-dto';
+import { CommentDto, CommentWithAuthor } from 'src/commons/dto/comment-dto';
+import {
+  PaginationDto,
+  PaginationResponseDto,
+} from 'src/commons/helpers/pagination-dto';
 import { ProjectStatus, Role, TaskStatus } from 'src/generated/prisma/enums';
 import { CommentWhereInput, TaskWhereInput } from 'src/generated/prisma/models';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -23,11 +27,14 @@ export class CommentsService {
     this.blockedTaskStatus = new Set<TaskStatus>(['CANCELLED', 'DONE']);
   }
 
+  /**
+   * Create a comment
+   */
   async create(
     message: string,
     taskId: string,
     user: { id: string; role: Role },
-  ) {
+  ): Promise<CommentDto> {
     const where: TaskWhereInput = { id: taskId };
 
     if (user.role === 'MEMBER') where.assigneeId = user.id;
@@ -49,14 +56,25 @@ export class CommentsService {
         taskId,
         authorId: user.id,
       },
+      select: {
+        id: true,
+        message: true,
+        authorId: true,
+      },
     });
   }
 
+  /**
+   * Get comments for a task with pagination
+   */
   async getComments(
     taskId: string,
     user: { id: string; role: Role },
     pagination?: PaginationDto,
-  ) {
+  ): Promise<{
+    comments: CommentWithAuthor[];
+    pagination: PaginationResponseDto;
+  }> {
     const where: CommentWhereInput = {
       taskId,
     };
@@ -78,6 +96,7 @@ export class CommentsService {
           select: {
             name: true,
             email: true,
+            avatarUrl: true,
           },
         },
       },
@@ -91,21 +110,31 @@ export class CommentsService {
     return {
       comments: comments.map((c) => ({
         id: c.id,
-        author: c.author?.name,
-        email: c.author?.email,
         message: c.message,
-        createdAt: c.createdAt,
-        byMe: c.authorId === user.id,
+        author: {
+          id: c.authorId,
+          name: c.author.name,
+          email: c.author.email,
+          avatarUrl: c.author.avatarUrl,
+          byMe: c.authorId === user.id,
+        },
       })),
       pagination: {
         page,
         limit,
+        totalItems: counts,
         totalPages: Math.ceil(counts / limit),
       },
     };
   }
 
-  async deleteComment(commentId: string, user: { id: string; role: Role }) {
+  /**
+   * Delete a comment
+   */
+  async deleteComment(
+    commentId: string,
+    user: { id: string; role: Role },
+  ): Promise<void> {
     const comment = await this.prismaService.comment.findUnique({
       where: { id: commentId },
       include: {
@@ -126,7 +155,7 @@ export class CommentsService {
     if (user.role === 'MEMBER' && comment?.authorId !== user.id)
       throw new UnauthorizedException('Cannot delete this comment');
 
-    return this.prismaService.comment.delete({
+    await this.prismaService.comment.delete({
       where: { id: commentId },
     });
   }
