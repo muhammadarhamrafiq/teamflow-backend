@@ -2,16 +2,26 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBody, ApiConsumes, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { OrgsService } from './orgs.service';
 import { RolesGuard } from '../commons/guards/roles.guard';
@@ -22,21 +32,33 @@ import { Roles } from '../commons/helpers/roles.decorator';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
 
 import type { Request } from 'express';
-import type { Express } from 'express';
 import { CreateOrgDto } from './dto/create-org-dto';
 import { UpdateOrgDto } from './dto/update-org-dto';
+import {
+  CreateOrganizationResponseDto,
+  DeleteOrganizationResonseDto,
+  GetOrganizationBySlug,
+  GetOrganizationsResponseDto,
+  UpdateOrganizationResponseDto,
+} from './dto/responses-dto';
 
 @ApiTags('Organization')
+@ApiAuth()
 @Controller({
   path: 'orgs',
   version: '1',
 })
 export class OrgsController {
   constructor(private readonly orgsService: OrgsService) {}
-
-  @ApiAuth()
+  /**
+   * Create Organization
+   */
   @Post()
-  async create(@Body() createOrgDto: CreateOrgDto, @Req() req: Request) {
+  @ApiResponse({ type: CreateOrganizationResponseDto })
+  async create(
+    @Body() createOrgDto: CreateOrgDto,
+    @Req() req: Request,
+  ): Promise<CreateOrganizationResponseDto> {
     const { id } = req.user!;
     const org = await this.orgsService.create(createOrgDto, id);
     return {
@@ -45,76 +67,71 @@ export class OrgsController {
     };
   }
 
-  @ApiAuth()
+  /**
+   * Get All Organizations
+   */
   @Get()
-  async getOrgs(@Req() req: Request) {
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+  })
+  @ApiResponse({ type: GetOrganizationsResponseDto })
+  async getOrgs(
+    @Req() req: Request,
+    @Query('search') search?: string,
+  ): Promise<GetOrganizationsResponseDto> {
     const { id } = req.user!;
-    const organizations = await this.orgsService.getOrgs(id);
+    const organizations = await this.orgsService.getOrgs(id, search);
     return {
       message: 'Feteched All organizations',
       organizations,
     };
   }
 
-  @ApiAuth()
+  /**
+   * Get Organization By Slug
+   */
   @Get(':slug')
-  async getOrg(@Req() req: Request, @Param('slug') slug: string) {
+  @ApiResponse({ type: GetOrganizationBySlug })
+  async getOrg(
+    @Req() req: Request,
+    @Param('slug') slug: string,
+  ): Promise<GetOrganizationBySlug> {
     const { id } = req.user!;
     const org = await this.orgsService.getOrg(slug, id);
     return {
       message: 'Organization fetched',
-      org,
+      organization: org,
     };
   }
 
-  @ApiAuth()
-  @Get(':orgId/members')
-  @UseGuards(RolesGuard)
-  async getMembers(@Param('orgId') organizationId: string) {
-    const members = await this.orgsService.getMembers(organizationId);
-    return {
-      message: 'Members Fetched Successfully',
-      members,
-    };
-  }
-
-  @ApiParam({ name: 'orgId' })
-  @ApiAuth()
-  @Get(':orgId/projects')
-  @UseGuards(RolesGuard)
-  async getProjects(@Req() req: Request) {
-    const { organizationId, userId, role } = req.orgMembership!;
-    const projects = await this.orgsService.getProjects(
-      organizationId,
-      userId,
-      role,
-    );
-    return {
-      message: 'Projects Fetched Successfully',
-      projects,
-    };
-  }
-
-  @ApiAuth()
+  /**
+   * Update Organization
+   */
+  @ApiResponse({ type: UpdateOrganizationResponseDto })
   @Patch(':orgId')
   @UseGuards(RolesGuard)
   @Roles('OWNER')
   async updateData(
     @Param('orgId') organizationId: string,
     @Body() updateOrgDto: UpdateOrgDto,
-  ) {
+  ): Promise<UpdateOrganizationResponseDto> {
     const updatedOrg = await this.orgsService.updateData(
       organizationId,
       updateOrgDto,
     );
     return {
       message: 'Organization updated successfully',
-      updatedOrg,
+      organization: updatedOrg,
     };
   }
 
-  @ApiAuth()
+  /**
+   * Update Organization Logo
+   */
   @ApiConsumes('multipart/form-data')
+  @ApiResponse({ type: UpdateOrganizationResponseDto })
   @ApiBody({
     schema: {
       type: 'object',
@@ -132,8 +149,22 @@ export class OrgsController {
   @UseInterceptors(FileInterceptor('logo'))
   async updateLogo(
     @Param('orgId') organizationId: string,
-    @UploadedFile('logo') logo: Express.Multer.File,
-  ) {
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({
+            maxSize: 2 * 1024 * 1024,
+            errorMessage: 'Max upload size is 2MB',
+          }),
+          new FileTypeValidator({
+            fileType: /(jpeg|jpg|png|webp)$/,
+            errorMessage: 'Invalid file type',
+          }),
+        ],
+      }),
+    )
+    logo: Express.Multer.File,
+  ): Promise<UpdateOrganizationResponseDto> {
     const organization = await this.orgsService.updateLogo(
       organizationId,
       logo.buffer,
@@ -144,11 +175,20 @@ export class OrgsController {
     };
   }
 
+  /**
+   * Delete Organization
+   */
   @ApiAuth()
+  @ApiResponse({
+    status: 200,
+    type: DeleteOrganizationResonseDto,
+  })
   @UseGuards(RolesGuard)
   @Delete(':orgId')
   @Roles('OWNER')
-  async deleteOrg(@Param('orgId') organizationId: string) {
+  async deleteOrg(
+    @Param('orgId') organizationId: string,
+  ): Promise<DeleteOrganizationResonseDto> {
     const organization = await this.orgsService.deleteOrg(organizationId);
     return {
       message: 'Organization deleted',

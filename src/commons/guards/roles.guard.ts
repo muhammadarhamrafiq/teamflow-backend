@@ -3,7 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
-  UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
@@ -33,11 +33,12 @@ export class RolesGuard implements CanActivate {
     if (!orgId && request.params.taskId) {
       orgId = await this.getOrgIdByTaskId(request);
     }
-    if (!orgId) throw new UnauthorizedException();
+
+    if (!orgId) throw new ForbiddenException('Permission Denied');
 
     const membership = await this.getMemberShip(userId, orgId);
 
-    if (!membership) throw new UnauthorizedException();
+    if (!membership) throw new ForbiddenException('Permission Denied');
 
     if (
       requiredRoles &&
@@ -81,7 +82,7 @@ export class RolesGuard implements CanActivate {
       where: { id: projectId },
     });
 
-    if (!project) throw new UnauthorizedException();
+    if (!project) throw new NotFoundException();
     return project.organizationId;
   }
 
@@ -102,7 +103,7 @@ export class RolesGuard implements CanActivate {
       },
     });
 
-    if (!task) throw new UnauthorizedException();
+    if (!task) throw new NotFoundException();
     return task.project.organizationId;
   }
 }

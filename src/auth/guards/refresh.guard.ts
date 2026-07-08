@@ -22,7 +22,8 @@ export class RefreshGuard implements CanActivate {
     if (!token) throw new UnauthorizedException();
 
     const payload = await this.tokenService.verifyRefreshToken(token);
-    if (!payload.email || !payload.id || payload.sessionId)
+
+    if (!payload.email || !payload.id || !payload.sessionId)
       throw new UnauthorizedException();
     request['user'] = { ...payload, token };
 

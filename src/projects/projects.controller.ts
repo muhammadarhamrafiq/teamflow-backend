@@ -15,7 +15,7 @@ import { CreateProjectDto } from './dto/create-project-dto';
 import { Roles } from 'src/commons/helpers/roles.decorator';
 import { RolesGuard } from 'src/commons/guards/roles.guard';
 import { ApiAuth } from 'src/commons/helpers/api-auth.decorator';
-import { ApiParam } from '@nestjs/swagger';
+import { ApiParam, ApiResponse } from '@nestjs/swagger';
 
 import type { Request } from 'express';
 import { GetProjectDto } from './dto/get-project-dto';
@@ -25,6 +25,14 @@ import {
 } from './dto/update-project-dto';
 import { ResourceIntegrityGuard } from 'src/commons/guards/resource-integrity.guard';
 import { Resources } from 'src/commons/helpers/resource.decorator';
+import {
+  CreateProjectResponseDto,
+  DeleteProjectResponseDto,
+  GetProjectResponseDto,
+  GetProjectsResponseDto,
+  ProjectStatusUpdateResponseDto,
+  ProjectUpdateResponseDto,
+} from './dto/response-dto';
 
 @ApiAuth()
 @ApiParam({ name: 'orgId' })
@@ -36,12 +44,19 @@ import { Resources } from 'src/commons/helpers/resource.decorator';
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
+  /*
+   * Create Project
+   */
+  @ApiResponse({
+    status: 201,
+    type: CreateProjectResponseDto,
+  })
   @Post()
   @Roles('OWNER', 'ADMIN')
   async createProject(
     @Body() createProjectDto: CreateProjectDto,
     @Req() req: Request,
-  ) {
+  ): Promise<CreateProjectResponseDto> {
     const { organizationId } = req.orgMembership!;
     const project = await this.projectsService.create({
       organizationId,
@@ -53,19 +68,27 @@ export class ProjectsController {
     };
   }
 
+  /**
+   * Get Projects
+   */
+  @ApiResponse({
+    status: 200,
+    type: GetProjectsResponseDto,
+  })
   @Get()
   async getProjects(
     @Req() req: Request,
     @Query() getProjectDto: GetProjectDto,
-  ) {
+  ): Promise<GetProjectsResponseDto> {
     const membership = req.orgMembership!;
     const data = await this.projectsService.getProjects(
       membership,
       {
         page: getProjectDto.page,
         limit: getProjectDto.limit,
+        search: getProjectDto.search,
       },
-      getProjectDto.archieved,
+      getProjectDto.projectStatus,
     );
     return {
       message: 'Projects fetched',
@@ -73,8 +96,18 @@ export class ProjectsController {
     };
   }
 
+  /**
+   * Get Project By Slug
+   */
+  @ApiResponse({
+    status: 200,
+    type: GetProjectResponseDto,
+  })
   @Get(':pslug')
-  async getProject(@Param('pslug') slug: string, @Req() req: Request) {
+  async getProject(
+    @Param('pslug') slug: string,
+    @Req() req: Request,
+  ): Promise<GetProjectResponseDto> {
     const membership = req.orgMembership!;
     const project = await this.projectsService.getProject(slug, membership);
     return {
@@ -83,6 +116,13 @@ export class ProjectsController {
     };
   }
 
+  /**
+   * Updated Project
+   */
+  @ApiResponse({
+    status: 200,
+    type: ProjectUpdateResponseDto,
+  })
   @Patch(':projectId')
   @Roles('OWNER', 'ADMIN')
   @UseGuards(ResourceIntegrityGuard)
@@ -95,7 +135,7 @@ export class ProjectsController {
   async updateProject(
     @Param('projectId') projectId: string,
     @Body() updateProjectDto: UpdateProjectDto,
-  ) {
+  ): Promise<ProjectUpdateResponseDto> {
     const project = await this.projectsService.updateProject(
       projectId,
       updateProjectDto,
@@ -106,6 +146,13 @@ export class ProjectsController {
     };
   }
 
+  /**
+   * Update Project Status
+   */
+  @ApiResponse({
+    status: 200,
+    type: UpdateProjectStatusDto,
+  })
   @Patch(':projectId/status')
   @Roles('OWNER', 'ADMIN')
   @UseGuards(ResourceIntegrityGuard)
@@ -118,7 +165,7 @@ export class ProjectsController {
   async updateStatus(
     @Param('projectId') projectId: string,
     @Body() updateProjectStatusDto: UpdateProjectStatusDto,
-  ) {
+  ): Promise<ProjectStatusUpdateResponseDto> {
     const project = await this.projectsService.updateProjectStatus(
       projectId,
       updateProjectStatusDto.status,
@@ -129,6 +176,10 @@ export class ProjectsController {
     };
   }
 
+  @ApiResponse({
+    status: 200,
+    type: DeleteProjectResponseDto,
+  })
   @Delete(':projectId')
   @Roles('OWNER', 'ADMIN')
   @UseGuards(ResourceIntegrityGuard)
@@ -138,11 +189,12 @@ export class ProjectsController {
     resource: 'project',
     resourceKey: 'projectId',
   })
-  async deleteProject(@Param('projectId') projectId: string) {
-    const project = await this.projectsService.deleteProject(projectId);
+  async deleteProject(
+    @Param('projectId') projectId: string,
+  ): Promise<DeleteProjectResponseDto> {
+    await this.projectsService.deleteProject(projectId);
     return {
       message: 'Project deleted',
-      project,
     };
   }
 }

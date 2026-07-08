@@ -16,9 +16,14 @@ import { RolesGuard } from 'src/commons/guards/roles.guard';
 import { PaginationDto } from 'src/commons/helpers/pagination-dto';
 import { ResourceIntegrityGuard } from 'src/commons/guards/resource-integrity.guard';
 import { Resources } from 'src/commons/helpers/resource.decorator';
-import { ApiParam } from '@nestjs/swagger';
+import { ApiParam, ApiResponse } from '@nestjs/swagger';
 
 import type { Request } from 'express';
+import {
+  CreateCommentResponseDto,
+  DeleteCommentResponseDto,
+  GetCommentsResponseDto,
+} from './dto/response-dtos';
 
 @ApiAuth()
 @ApiParam({ name: 'taskId' })
@@ -30,12 +35,16 @@ import type { Request } from 'express';
 export class CommentsController {
   constructor(private readonly commentsService: CommentsService) {}
 
+  @ApiResponse({
+    status: 201,
+    type: CreateCommentResponseDto,
+  })
   @Post()
   async create(
     @Param('taskId') taskId: string,
     @Body() createCommentDto: CreateCommentDto,
     @Req() req: Request,
-  ) {
+  ): Promise<CreateCommentResponseDto> {
     const { userId, role } = req.orgMembership!;
     const comment = await this.commentsService.create(
       createCommentDto.message,
@@ -49,27 +58,36 @@ export class CommentsController {
     };
   }
 
+  @ApiResponse({
+    status: 200,
+    type: GetCommentsResponseDto,
+  })
   @Get()
   async getComments(
     @Param('taskId') taskId: string,
     @Req() req: Request,
-    @Query() pagination: PaginationDto,
-  ) {
+    @Query() paginationQuery: PaginationDto,
+  ): Promise<GetCommentsResponseDto> {
     const { userId, role } = req.orgMembership!;
-    const comments = await this.commentsService.getComments(
+    const { comments, pagination } = await this.commentsService.getComments(
       taskId,
       {
         id: userId,
         role,
       },
-      pagination,
+      paginationQuery,
     );
     return {
       message: 'comments fetched',
       comments,
+      pagination,
     };
   }
 
+  @ApiResponse({
+    status: 200,
+    type: DeleteCommentResponseDto,
+  })
   @Delete(':commentId')
   @UseGuards(ResourceIntegrityGuard)
   @Resources({
@@ -81,16 +99,15 @@ export class CommentsController {
   async deleteComment(
     @Param('commentId') commentId: string,
     @Req() req: Request,
-  ) {
+  ): Promise<DeleteCommentResponseDto> {
     const { userId, role } = req.orgMembership!;
-    const comment = await this.commentsService.deleteComment(commentId, {
+    await this.commentsService.deleteComment(commentId, {
       id: userId,
       role,
     });
 
     return {
       message: 'comment deleted',
-      comment,
     };
   }
 }

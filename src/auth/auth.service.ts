@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 
@@ -40,7 +41,12 @@ export class AuthService {
     if (!validPassword || !user)
       throw new UnauthorizedException('Invalid Credentials');
 
-    return { id: user.id, email: user.email };
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+    };
   }
 
   async register(registerDto: EmailDto) {
@@ -119,10 +125,14 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async logout(sessionId: string) {
+  async logout(refreshToken?: string) {
+    if (!refreshToken) return;
+
+    const payload = await this.tokenService.verifyRefreshToken(refreshToken);
+
     await this.prismaService.refreshToken.deleteMany({
       where: {
-        id: sessionId,
+        id: payload.sessionId,
       },
     });
   }
@@ -152,7 +162,15 @@ export class AuthService {
   }
 
   async getMe(id: string) {
-    return this.userService.findUserById(id);
+    const user = await this.userService.findUserById(id);
+    if (!user) throw new NotFoundException();
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+    };
   }
 
   async updateEmail(id: string, newEmail: string) {

@@ -7,7 +7,7 @@ export class CreateTaskDto {
   @ApiProperty({ example: 'Task 1' })
   @IsString({ message: 'Task name is required string' })
   @Length(3, 50, { message: 'Name must contain 3-50 characters' })
-  name: string;
+  title: string;
 
   @ApiProperty({ example: 'Description' })
   @IsString()
@@ -15,10 +15,11 @@ export class CreateTaskDto {
   @Length(10, 500, { message: 'Description must contain 10 - 500 characters' })
   description?: string;
 
+  @ApiProperty()
   @IsOptional()
   @Type(() => Date)
-  @IsDate({ message: 'due date must be a valid date' })
-  @IsFutureDate({ message: 'due date must be a valid future date' })
+  @IsDate({ message: 'start date must be a valid date' })
+  @IsFutureDate({ message: 'start date must me a valid future date' })
   startDate?: Date;
 
   @ApiProperty({ example: '2026-12-31T00:00:00.000Z' })

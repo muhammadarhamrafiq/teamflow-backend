@@ -7,6 +7,7 @@ import { UserCreateInput, UserUpdateInput } from 'src/generated/prisma/models';
 import { FinalizeInvitationStatus } from './dto/update-dtos';
 import { TasksService } from 'src/tasks/tasks.service';
 import { CloudinaryService } from 'src/commons/cloudinary/cloudinary.service';
+import { TokenService } from 'src/commons/jwt/token.service';
 
 @Injectable()
 export class UsersService {
@@ -16,20 +17,60 @@ export class UsersService {
     private readonly membershipService: MembershipService,
     private readonly taskService: TasksService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly tokenService: TokenService,
   ) {}
+
+  private async createSession(userId: string, email: string) {
+    const sessionId = crypto.randomUUID();
+
+    const { accessToken, refreshToken } =
+      await this.tokenService.generateAuthTokens({
+        sessionId,
+        email,
+        id: userId,
+      });
+
+    const hashedRefreshToken = await this.passwordService.hash(
+      refreshToken.token,
+    );
+
+    const expiresAt = new Date(Date.now() + refreshToken.expiresIn);
+
+    await this.prismaService.refreshToken.create({
+      data: {
+        id: sessionId,
+        token: hashedRefreshToken,
+        userId,
+        expiresAt,
+      },
+    });
+
+    return { accessToken, refreshToken };
+  }
 
   async register(data: UserCreateInput) {
     const hashedPassword = await this.passwordService.hash(data.password);
-    return this.prismaService.user.create({
+
+    const user = await this.prismaService.user.create({
       data: {
         email: data.email,
         password: hashedPassword,
         name: data.name,
       },
-      omit: {
-        password: true,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
       },
     });
+
+    const { accessToken, refreshToken } = await this.createSession(
+      user.id,
+      user.email,
+    );
+
+    return { accessToken, refreshToken, user };
   }
 
   async findUserById(id: string) {
@@ -77,8 +118,12 @@ export class UsersService {
     const user = await this.prismaService.user.update({
       where: { id, deletedAt: null },
       data: payload,
-      omit: {
-        password: true,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        updatedAt: true,
       },
     });
     return user;
@@ -127,7 +172,13 @@ export class UsersService {
     if (user.avatarPublicId)
       await this.cloudinaryService.removeFile(user.avatarPublicId);
 
-    return updatedUser;
+    return {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      avatarUrl: updatedUser.avatarUrl,
+      updatedAt: updatedUser.updatedAt,
+    };
   }
 
   async removeAvatar(id: string) {

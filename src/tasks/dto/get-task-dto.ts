@@ -1,14 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional } from 'class-validator';
 import { PaginationDto } from 'src/commons/helpers/pagination-dto';
-import { ProjectStatus } from 'src/generated/prisma/enums';
+import { TaskStatus } from 'src/generated/prisma/enums';
 
-export class GetProjectDto extends PaginationDto {
+export class GetTaskDto extends PaginationDto {
   @ApiPropertyOptional()
   @IsOptional()
   search?: string;
 
-  @ApiPropertyOptional({})
+  @ApiPropertyOptional({ example: 'OPEN', enum: TaskStatus })
   @IsOptional()
-  projectStatus?: ProjectStatus;
+  status?: TaskStatus;
 }
